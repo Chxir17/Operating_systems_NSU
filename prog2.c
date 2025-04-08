@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
+//qwe
 
 #define SIZE 4096
 
