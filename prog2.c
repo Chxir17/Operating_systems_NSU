@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
     }
     else if (strcmp(action, "./chmod") == 0) {
         if (argc != 2) {
-            printf("cmod <target> <link>\n");
+            printf("chmod <target> <link>\n");
             return 1;
         }
         mode_t mode = strtol(argv[2], NULL, 8);
