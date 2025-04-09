@@ -151,7 +151,7 @@ void myLsl(char *path) {
         printf( (sb.st_mode & S_IXOTH) ? "x" : "-");
         printf("\n\n");
 
-        printf("Number of hard links: %ld\n", sb.st_nlink);
+        printf("Number of hard links: %d\n", sb.st_nlink);
     }
 }
 
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
     else if (strcmp(action, "./lsl") == 0) {
         myLsl(path);
     }
-    else if (strcmp(action, "./cmod") == 0) {
+    else if (strcmp(action, "./chmod") == 0) {
         if (argc != 2) {
             printf("cmod <target> <link>\n");
             return 1;
