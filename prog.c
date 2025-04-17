@@ -145,14 +145,39 @@ int reverseFiles(const char *srcPath, const char *reversedPath) {
     if (!dir){
         return 0;
     }
-    struct dirent *entry; // структура для хранения информации о файлах/папках при обходе.
+    struct dirent *entry; // структура для хранения информации о файлах при обходе.
+    /*struct dirent {
+    ino_t          d_ino;       // номер inode (уникальный идентификатор файла в пределах ФС)
+    off_t          d_off;       // смещение до следующей записи (не всегда используется)
+    unsigned short d_reclen;    // длина этой записи
+    unsigned char  d_type;      // тип файла (если поддерживается)
+    char           d_name[];    // имя файла (null-terminated строка)
+};
+     */
     struct stat entryStat; //структура для получения информации о файле.
-
+/*
+    *struct stat {
+        dev_t     st_dev;     // ID устройства, на котором расположен файл
+        ino_t     st_ino;     // номер inode
+        mode_t    st_mode;    // режим файла (тип и права доступа)
+        nlink_t   st_nlink;   // количество жёстких ссылок
+        uid_t     st_uid;     // ID владельца
+        gid_t     st_gid;     // ID группы
+        dev_t     st_rdev;    // ID устройства (если это спецфайл)
+        off_t     st_size;    // размер файла в байтах
+        blksize_t st_blksize; // размер блока для ввода-вывода
+        blkcnt_t  st_blocks;  // количество блоков, занятых файлом
+        time_t    st_atime;   // время последнего доступа
+        time_t    st_mtime;   // время последнего изменения содержимого
+        time_t    st_ctime;   // время последнего изменения метаданных
+    };
+ */
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
             continue;
         }
         char *fullSrcPath = getPath(srcPath, entry->d_name);
+
         stat(fullSrcPath, &entryStat);
 
         if (S_ISREG(entryStat.st_mode)) {
