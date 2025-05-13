@@ -87,17 +87,17 @@ void env() {
 
 int main() {
     pid_t pid = getpid();
-//    printf("PID of this process : %d \n\n", pid);
-//    locals();
-//    statics();
-//    constants();
-//    globals();
-//    sleep(10);
-//
-//    printf("Variable address in main: %p\n", (void *) variable_address());
-//    sleep(20);
-//    buffer();
-//    sleep(20);
-//    env();
+    printf("PID of this process : %d \n\n", pid);
+    locals();
+    statics();
+    constants();
+    globals();
+    sleep(10);
+
+    printf("Variable address in main: %p\n", (void *) variable());
+    sleep(20);
+    buffer();
+    sleep(20);
+    env();
     return 0;
 }
