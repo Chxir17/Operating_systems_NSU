@@ -70,7 +70,7 @@ void buffer() {
     strcpy(buffer2, "dep again");
     printf("before free 2: %s \n", buffer2);
 
-    char *midBuffer = (buffer2 + 77);
+    char *midBuffer = (buffer2 + 4);
 
     printf("Content from the start of the second buffer: %s\n", buffer2);
     printf("Content in the middle of the second buffer: %s \n", midBuffer);
