@@ -72,10 +72,12 @@ char *reverseDir(const char *srcPath) {
 
 long fileSize(FILE *f) {
     if (fseek(f, 0, SEEK_END) != 0) {
+        perror("fseek SEEK_END");
         return FSEEK_ERROR;
     }
     const long size = ftell(f);
     if (fseek(f, 0, SEEK_SET) != 0) {
+        perror("fseek SEEK_SET");
         return FSEEK_ERROR;
     }
     return size;
@@ -92,7 +94,7 @@ void createReverseName(const char *fileName, char *reverseName) {
 void copyContent(FILE *source, FILE *destination) {
     long size = fileSize(source);
     if (size == FSEEK_ERROR) {
-        perror("File size not received\n");
+        perror("File size not received");
         return;
     }
     char buffer[BUF_SIZE];
@@ -101,12 +103,12 @@ void copyContent(FILE *source, FILE *destination) {
         long pos = remaining - toRead;
 
         if (fseek(source, pos, SEEK_SET) != 0) {
-            printf("Can't seek in source file\n");
+            perror("Can't seek in source file");
             return;
         }
 
         if (fread(buffer, 1, toRead, source) != toRead) {
-            printf("Error reading source file\n");
+            perror("Error reading source file");
             return;
         }
         for (long long i = 0; i < toRead / 2; i++) {
@@ -116,7 +118,7 @@ void copyContent(FILE *source, FILE *destination) {
         }
 
         if (fwrite(buffer, 1, toRead, destination) != toRead) {
-            printf("Error writing to destination file\n");
+            perror("Error writing to destination file");
             return;
         }
         remaining -= toRead;
@@ -137,11 +139,13 @@ int createReverseFile(const char *srcPath, const char *srcName, const char *reve
     getPath(reversedPath, reversedName, destination, destLen);
 
     FILE *in = fopen(source, "r");
-    if (!in){
+    if (!in) {
+        fprintf(stderr, "Error opening file for reading: %s\n", source);
         return FILE_OPEN_ERROR;
     }
     FILE *out = fopen(destination, "w+");
     if (!out) {
+        fprintf(stderr, "Error opening file for writing: %s\n", destination);
         fclose(in);
         return FILE_OPEN_ERROR;
     }
@@ -153,46 +157,58 @@ int createReverseFile(const char *srcPath, const char *srcName, const char *reve
 
 int reverseFiles(const char *srcPath, const char *reversedPath) {
     DIR *dir = opendir(srcPath);
-    if (!dir){
-        printf("Failed to open source directory");
+    if (!dir) {
+        fprintf(stderr, "Failed to open directory: %s\n", srcPath);
         return DIR_OPEN_ERROR;
     }
+
     struct dirent *entry;
     struct stat entryStat;
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
+
         long len = strlen(srcPath) + strlen(entry->d_name) + 2;
         char fullSrcPath[len];
         getPath(srcPath, entry->d_name, fullSrcPath, len);
-        stat(fullSrcPath, &entryStat);
+
+        if (stat(fullSrcPath, &entryStat) != 0) {
+            fprintf(stderr, "Cannot stat file: %s\n", fullSrcPath);
+            continue;
+        }
 
         if (S_ISREG(entryStat.st_mode)) {
             const long fileNameLen = strlen(entry->d_name);
-            char reversedFileName[fileNameLen];
+            char reversedFileName[fileNameLen + 1];
+            reversedFileName[fileNameLen] = '\0';
             createReverseName(entry->d_name, reversedFileName);
-            if (createReverseFile(srcPath, entry->d_name, reversedPath, reversedFileName) != 1) {
-                closedir(dir);
-                return REVERSE_ERROR;
+            if (createReverseFile(srcPath, entry->d_name, reversedPath, reversedFileName) != SUCCESS) {
+                fprintf(stderr, "Failed to reverse file: %s\n", fullSrcPath);
+                continue;
             }
         }
         else if (S_ISDIR(entryStat.st_mode)) {
             const long DirNameLen = strlen(entry->d_name);
-            char reversedDirName[DirNameLen];
+            char reversedDirName[DirNameLen + 1];
+            reversedDirName[DirNameLen] = '\0';
             createReverseName(entry->d_name, reversedDirName);
+
             char newDestPath[len];
             getPath(reversedPath, reversedDirName, newDestPath, len);
+
             if (createReverseDir(newDestPath) != 0) {
-                closedir(dir);
-                return DIR_CREATE_ERROR;
+                fprintf(stderr, "Failed to create subdirectory: %s\n", newDestPath);
+                continue;
             }
-            if (!reverseFiles(fullSrcPath, newDestPath)) {
-                closedir(dir);
-                return REVERSE_ERROR;
+
+            if (reverseFiles(fullSrcPath, newDestPath) != SUCCESS) {
+                fprintf(stderr, "Failed to reverse subdirectory: %s\n", fullSrcPath);
+                continue;
             }
         }
     }
+
     closedir(dir);
     return SUCCESS;
 }
@@ -201,24 +217,24 @@ int reverseFiles(const char *srcPath, const char *reversedPath) {
 
 int main(int argc, char **argv) {
     if (argc != 2){
-        printf("Enter only directory path as a program argument\n");
+        fprintf(stderr, "Enter only directory path as a program argument\n");
         return ARGS_ERROR;
     }
 
     char absSrcPath[PATH_MAX];
     if (!realpath(argv[1], absSrcPath)) {
-        printf("Error with getting full path\n");
+        perror("Error with getting full path");
         return PATH_ERROR;
     }
 
     char *reversePath = reverseDir(absSrcPath);
     if (!reversePath){
-        printf("Directory wasn't reversed\n");
+        fprintf(stderr, "Directory wasn't reversed\n");
         return REVERSE_ERROR;
     }
 
-    if (reverseFiles(absSrcPath, reversePath) != 1) {
-        printf("Files weren't reversed\n");
+    if (reverseFiles(absSrcPath, reversePath) != SUCCESS) {
+        fprintf(stderr, "Files weren't reversed\n");
         free(reversePath);
         return REVERSE_ERROR;
     }
