@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #define PATH_MAX 4096
+#define BUF_SIZE 1024
 
 enum ERRORS {
     SUCCESS = 1,
@@ -91,44 +92,37 @@ void createReverseName(const char *fileName, char *reverseName) {
 void copyContent(FILE *source, FILE *destination) {
     long size = fileSize(source);
     if (size == FSEEK_ERROR) {
-        printf("File size not received\n");
+        perror("File size not received\n");
         return;
     }
+    char buffer[BUF_SIZE];
+    for (long remaining = size; remaining > 0;) {
+        long long toRead = remaining >= BUF_SIZE ? BUF_SIZE : remaining;
+        long pos = remaining - toRead;
 
-    char *buffer = malloc(size);
-    if (buffer == NULL) {
-        printf("Memory allocation error\n");
-        return;
-    }
-    if (fseek(source, 0, SEEK_SET) != 0) {
-        printf("Can't set position in source file");
-        free(buffer);
-        return;
-    }
+        if (fseek(source, pos, SEEK_SET) != 0) {
+            printf("Can't seek in source file\n");
+            return;
+        }
 
-    if (fread(buffer, 1, size, source) != size) {
-        printf("Error reading source file\n");
-        free(buffer);
-        return;
-    }
+        if (fread(buffer, 1, toRead, source) != toRead) {
+            printf("Error reading source file\n");
+            return;
+        }
+        for (long long i = 0; i < toRead / 2; i++) {
+            char tmp = buffer[i];
+            buffer[i] = buffer[toRead - i - 1];
+            buffer[toRead - i - 1] = tmp;
+        }
 
-    for (long i = 0; i < size / 2; i++) {
-        char temp = buffer[i];
-        buffer[i] = buffer[size - i - 1];
-        buffer[size - i - 1] = temp;
+        if (fwrite(buffer, 1, toRead, destination) != toRead) {
+            printf("Error writing to destination file\n");
+            return;
+        }
+        remaining -= toRead;
     }
-
-    if (fseek(destination, 0, SEEK_SET) != 0) {
-        printf("Can't set position in destination file\n");
-        free(buffer);
-        return;
-    }
-
-    if (fwrite(buffer, 1, size, destination) != size) {
-        printf("Error writing to destination file\n");
-    }
-    free(buffer);
 }
+
 
 void getPath(const char *path, const char *name, char *full, long len) {
     snprintf(full, len, "%s/%s", path, name);
