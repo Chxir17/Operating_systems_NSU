@@ -22,14 +22,14 @@ int main() {
         printf("Parent pid: %d \n", getppid());
         printf("C_proc: global var %d and its address %p \n", global_var, &global_var);
         printf("C_proc: local var %d and its address %p \n", local_var, &local_var);
-        global_var = 20;
-        local_var = 207;
+        global_var = 30;
+        local_var = 307;
         exit(2);
     }
     else {
+        sleep(20);
         printf("P_proc: global var %d and its address %p \n", global_var, &global_var);
         printf("P_proc: local var %d and its address %p \n", local_var, &local_var);
-        sleep(30);
         int status;
         pid_t child = wait(&status);
         if (WIFEXITED(status)) {
