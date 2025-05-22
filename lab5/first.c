@@ -18,13 +18,15 @@ int main() {
         return 1;
     }
     else if (pid_fork == 0) {
+        pid_t pid_fork1 = fork();
+
         printf("Child pid : %d \n", getpid());
         printf("Parent pid: %d \n", getppid());
         printf("C_proc: global var %d and its address %p \n", global_var, &global_var);
         printf("C_proc: local var %d and its address %p \n", local_var, &local_var);
         global_var = 30;
         local_var = 307;
-        exit(2);
+        exit(5);
     }
     else {
         sleep(20);
@@ -33,7 +35,7 @@ int main() {
         int status;
         pid_t child = wait(&status);
         if (WIFEXITED(status)) {
-            printf("Child process %d ended with %d status\n", child, WIFEXITED(status));
+            printf("Child process %d ended with %d status\n", child, WEXITSTATUS(status));
         }
         else {
             printf("Child process %d ended without ok. Status: %d \n", child, WIFEXITED(status));

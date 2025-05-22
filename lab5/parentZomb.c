@@ -9,12 +9,14 @@ int main() {
         perror("fork");
         return 1;
     }
+
     else if (pid == 0) {
         printf("Child pid: %d \n", getpid());
         sleep(2);
         printf("Child process finished | pid %d.\n", getpid());
         exit(0);
     }
+
     else {
         printf("Parent pid: %d.\n", getpid());
         sleep(15);
