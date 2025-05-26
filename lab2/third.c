@@ -51,14 +51,11 @@ int main(int argc, char *argv[]) {
                 break;
             }
             // Вход в системный вызов
-            ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &regs); // для определения regs
-
-
             struct iovec iov = {
                 .iov_base = &regs,
                 .iov_len = sizeof(regs),
             };
-            if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) {
+            if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) { // NT_PRSTATUS (with numerical value 1) usually result in reading of general-purpose registers.
                 perror("ptrace GETREGSET");
                 break;
             }
