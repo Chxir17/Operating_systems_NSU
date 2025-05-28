@@ -82,8 +82,9 @@ int main(int argc, char *argv[]) {
 
         while (1) {
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) break;
-
+            if (WIFEXITED(status)) {
+                break;
+            }
             struct iovec iov = {
                 .iov_base = &regs,
                 .iov_len = sizeof(regs),
@@ -97,10 +98,11 @@ int main(int argc, char *argv[]) {
             printf("[ENTER] Syscall %lu (%s)\n", syscall_num, get_syscall_name(syscall_num));
 
             ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
-
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) break;
 
+            if (WIFEXITED(status)) {
+                break;
+            }
             if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) {
                 perror("ptrace GETREGSET");
                 break;
@@ -111,7 +113,8 @@ int main(int argc, char *argv[]) {
 
             ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
         }
-    } else {
+    }
+    else {
         perror("fork");
         return 1;
     }
