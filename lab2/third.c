@@ -2,7 +2,7 @@
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/user.h>      // user_pt_regs для ARM64
+#include <sys/user.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -10,75 +10,115 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/uio.h>
-
-// Для ARM64 используем struct user_pt_regs вместо struct user_regs_struct
 #include <linux/ptrace.h>
 #include <linux/elf.h>
+
+#define MAX_SYSCALLS 512
+#define SYSCALL_FILE "/usr/include/asm-generic/unistd.h"
+
+typedef struct {
+    char name[64];
+} syscall_entry;
+
+syscall_entry syscall_list[MAX_SYSCALLS];
+
+void load_syscall_names(const char* filename) {
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        perror("fopen syscall header");
+        return;
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        unsigned long num;
+        char name[64];
+
+        if (sscanf(line, "#define __NR_%64s %lu", name, &num) == 2 || sscanf(line, "#define __NR3264_%64s %lu", name, &num) == 2) {
+            if (num < MAX_SYSCALLS) {
+                strncpy(syscall_list[num].name, name, sizeof(syscall_list[num].name) - 1);
+                syscall_list[num].name[sizeof(syscall_list[num].name) - 1] = '\0';
+            }
+        }
+    }
+
+    fclose(fp);
+}
+
+const char* get_syscall_name(unsigned long num) {
+    if (num < MAX_SYSCALLS) {
+        return syscall_list[num].name;
+    }
+    return "unknown";
+}
 
 int main(int argc, char *argv[]) {
     pid_t child_pid;
     if (argc < 2) {
-        fprintf(stderr, "Use: ./<this programm> <program to run>\n");
+        fprintf(stderr, "Usage: %s <program_to_run>\n", argv[0]);
         return 1;
     }
-    printf("Prog to run '%s'\n", argv[1]);
+
+    load_syscall_names(SYSCALL_FILE);
+
     int status;
-    struct user_pt_regs regs; //регистры ARM64, получаемые от ptrace
+    struct user_pt_regs regs;
     child_pid = fork();
 
-
     if (child_pid == 0) {
+        // Дочерний процесс
         if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) < 0) {
             perror("ptrace");
             exit(1);
         }
-        int execl_err = execl(argv[1], argv[1], NULL);
-        if (execl_err == -1) {
-            perror("execv");
-            exit(1);
-        }
+        execl(argv[1], argv[1], NULL);
+        perror("execl");
+        exit(1);
     }
-
     else if (child_pid > 0) {
         // Родитель
-        waitpid(child_pid, &status, 0); // Ждём SIGSTOP
-
-        ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL); //продолжаем до следующего syscall
+        waitpid(child_pid, &status, 0);
+        ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
 
         while (1) {
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) {
-                break;
-            }
-            // Вход в системный вызов
+            if (WIFEXITED(status)) break;
+
             struct iovec iov = {
                 .iov_base = &regs,
                 .iov_len = sizeof(regs),
             };
-            if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) { // NT_PRSTATUS (with numerical value 1) usually result in reading of general-purpose registers.
+            if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) {
                 perror("ptrace GETREGSET");
                 break;
             }
 
-            unsigned long syscall = regs.regs[8]; //syscall на arm64
-            printf("Syscall number: %lu\n", syscall);
+            unsigned long syscall_num = regs.regs[8];
+            printf("[ENTER] Syscall %lu (%s)\n", syscall_num, get_syscall_name(syscall_num));
 
             ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
 
-            // Ждём выход из системного вызова
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) {
+            if (WIFEXITED(status)) break;
+
+            if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) {
+                perror("ptrace GETREGSET");
                 break;
             }
-            ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);//разрешаем дочернему процессу продолжить до выхода из системного вызова.
+
+            long retval = regs.regs[0];
+            printf("[EXIT ] Return: %ld\n", retval);
+
+            ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
         }
-    }
-    else {
+    } else {
         perror("fork");
         return 1;
     }
+
     return 0;
 }
+
 
 /**
 Системный вызов ptrace(2) позволяет одному процессу контролировать выполнение другого
