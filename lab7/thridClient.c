@@ -11,7 +11,7 @@
 int clientSocket;
 
 void sigintHandler(int sig) {
-    printf("\nClient down...\n");
+    printf("\nClient down\n");
     close(clientSocket);
     exit(EXIT_SUCCESS);
 }
@@ -75,13 +75,13 @@ int main(int argc, char *argv[]) {
     }
     const char *serverIP = argv[1];
     int port = atoi(argv[2]);
-    struct sockaddr_in server_addr;
+    struct sockaddr_in serverAddr;
     signal(SIGINT, sigintHandler);
 
-    connectToServer(&server_addr, serverIP, port);
+    connectToServer(&serverAddr, serverIP, port);
     clientLoop();
 
-    printf("\nClient down...\n");
+    printf("\nClient down\n");
     close(clientSocket);
     exit(EXIT_SUCCESS);
 }
