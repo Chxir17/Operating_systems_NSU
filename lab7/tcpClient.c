@@ -21,7 +21,7 @@ void connectToServer(int sockfd, const char *ip, uint16_t port) {
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) { //конвертация текста в двоичный
         perror("Invalid address");
         close(sockfd);
         exit(EXIT_FAILURE);
@@ -37,7 +37,7 @@ void connectToServer(int sockfd, const char *ip, uint16_t port) {
 void communicate(int sockfd, const char* serverIP, int port) {
     char buffer[BUF_SIZE];
     ssize_t bytesReceived;
-    printf("Connected to server: %s:%d\n", serverIP, port);
+    printf("Connected!");
     while (1) {
         printf("Your message: ");
         if (fgets(buffer, sizeof(buffer), stdin) == NULL) {

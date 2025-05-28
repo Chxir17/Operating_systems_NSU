@@ -18,10 +18,10 @@ int createUdpSocket() {
     return sockfd;
 }
 
-struct hostent *resolveHostname(const char *hostname) {
-    struct hostent *server = gethostbyname(hostname);
+struct hostent *resolveHostname(const char *serverIP) {
+    struct hostent *server = gethostbyname(serverIP);///etc/hosts
     if (server == NULL) {
-        fprintf(stderr, "Host %s not found\n", hostname);
+        fprintf(stderr, "Host %s not found\n", serverIP);
         exit(EXIT_FAILURE);
     }
     return server;
@@ -56,10 +56,10 @@ void receiveReply(int sockfd, struct sockaddr_in *serverAddr) {
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
-        fprintf(stderr, "Usage: %s <hostname> <port> <message>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <server ip> <port> <message>\n", argv[0]);
         return EXIT_FAILURE;
     }
-    const char *hostname = argv[1];
+    const char *serverIP = argv[1];
     int port = atoi(argv[2]);
     const char *message = argv[3];
     if (port <= 0 || port > 65535) {
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     }
 
     int sockfd = createUdpSocket();
-    struct hostent *server = resolveHostname(hostname);
+    struct hostent *server = resolveHostname(serverIP);
     struct sockaddr_in serverAddr;
     prepareServerAddress(&serverAddr, server, port);
     sendMessage(sockfd, message, &serverAddr);

@@ -11,7 +11,7 @@
 #include <errno.h>
 
 #define BUFFER_SIZE 1024
-#define BACKLOG 10
+
 
 void handleClient(int clientSocket) {
     char buffer[BUFFER_SIZE];
@@ -36,7 +36,7 @@ void sigchldHandler(int sig) {
 void setupSigchldHandler() {
     struct sigaction sa = {
         .sa_handler = sigchldHandler,
-        .sa_flags = SA_RESTART
+        .sa_flags = SA_RESTART //востановление после рестарта
     };
     sigemptyset(&sa.sa_mask);
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
@@ -46,9 +46,9 @@ void setupSigchldHandler() {
 }
 
 int setupServerSocket(const int port) {
-    int sockfd;
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serverAddr;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if (sockfd < 0) {
         perror("Socket create fail");
         exit(EXIT_FAILURE);
     }
@@ -62,7 +62,7 @@ int setupServerSocket(const int port) {
         close(sockfd);
         exit(EXIT_FAILURE);
     }
-    if (listen(sockfd, BACKLOG) < 0) {
+    if (listen(sockfd, 66) < 0) {
         perror("Listen fail");
         close(sockfd);
         exit(EXIT_FAILURE);
@@ -78,7 +78,6 @@ int main(int argc, char *argv[]) {
     int port = atoi(argv[1]);
     int serverSocket = setupServerSocket(port);
     setupSigchldHandler();
-    printf("TCP-server listening on port %d.\n", port);
     while (1) {
         struct sockaddr_in clientAddr;
         socklen_t clientLen = sizeof(clientAddr);
@@ -87,11 +86,6 @@ int main(int argc, char *argv[]) {
             perror("Accept failed");
             continue;
         }
-
-        printf("New connection from %s:%d\n",
-               inet_ntoa(clientAddr.sin_addr),
-               ntohs(clientAddr.sin_port));
-
         pid_t pid = fork();
         if (pid == 0) {
             close(serverSocket);

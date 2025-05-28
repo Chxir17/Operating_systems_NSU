@@ -38,25 +38,25 @@ void removeClient(int sd) {
     }
 }
 
-void handleClientMessage(int sd) {
+void handleClientMessage(int socket) {
     char buffer[BUFFER_SIZE];
-    ssize_t valread = read(sd, buffer, sizeof(buffer));
+    ssize_t valread = read(socket, buffer, sizeof(buffer));
     if (valread < 0) {
         perror("Read error");
-        removeClient(sd);
+        removeClient(socket);
     }
     else if (valread == 0) {
         struct sockaddr_in addr;
         socklen_t len = sizeof(addr);
-        getpeername(sd, (struct sockaddr *)&addr, &len);
+        getpeername(socket, (struct sockaddr *)&addr, &len);
         printf("Client disconnected: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-        removeClient(sd);
+        removeClient(socket);
     }
     else {
         if (valread < BUFFER_SIZE) buffer[valread] = '\0';
-        if (send(sd, buffer, valread, 0) != valread) {
+        if (send(socket, buffer, valread, 0) != valread) {
             perror("Send error");
-            removeClient(sd);
+            removeClient(socket);
         }
     }
 }
@@ -78,7 +78,8 @@ void addNewClient(int newSocket, struct sockaddr_in *clientAddr) {
 void setupServer(int port) {
     struct sockaddr_in serverAddr;
     int opt = 1;
-    if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0 ) {
         perror("Socket create fail");
         exit(EXIT_FAILURE);
     }
@@ -99,7 +100,7 @@ void setupServer(int port) {
         exit(EXIT_FAILURE);
     }
 
-    if (listen(serverSocket, 10) < 0) {
+    if (listen(serverSocket, 66) < 0) {
         perror("Listen fail");
         close(serverSocket);
         exit(EXIT_FAILURE);
@@ -109,30 +110,30 @@ void setupServer(int port) {
 }
 
 void serverLoop() {
-    fd_set readFds;
-    int maxSd;
+    fd_set descriptors;
+    int maxSocket;
     while (1) {
-        FD_ZERO(&readFds);
-        FD_SET(serverSocket, &readFds);
-        maxSd = serverSocket;
+        FD_ZERO(&descriptors);// очистка набора дискрипторов
+        FD_SET(serverSocket, &descriptors);//добавляет фд
+        maxSocket = serverSocket;
 
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            int sd = clientSockets[i];
-            if (sd > 0) {
-                FD_SET(sd, &readFds);
+            int socket = clientSockets[i];
+            if (socket > 0) {
+                FD_SET(socket, &descriptors);
             }
-            if (sd > maxSd){
-                maxSd = sd;
+            if (socket > maxSocket){
+                maxSocket = socket;
             }
         }
 
-        int activity = select(maxSd + 1, &readFds, NULL, NULL, NULL);
+        int activity = select(maxSocket + 1, &descriptors, NULL, NULL, NULL);
         if (activity < 0 && errno != EINTR) {
             perror("select error");
             continue;
         }
 
-        if (FD_ISSET(serverSocket, &readFds)) {
+        if (FD_ISSET(serverSocket, &descriptors)) {
             struct sockaddr_in clientAddr;
             socklen_t addrLen = sizeof(clientAddr);
             int newSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrLen);
@@ -146,9 +147,9 @@ void serverLoop() {
         }
 
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            int sd = clientSockets[i];
-            if (sd > 0 && FD_ISSET(sd, &readFds)) {
-                handleClientMessage(sd);
+            int socket = clientSockets[i];
+            if (socket > 0 && FD_ISSET(socket, &descriptors)) {
+                handleClientMessage(socket);
             }
         }
     }

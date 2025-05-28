@@ -9,24 +9,24 @@
 #define BUFFER_SIZE 1024
 
 int createUdpSocket() {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);//тип ipv4, тип потока datagram, протокол
     if (sockfd < 0){
         perror("Socket create fail");
         exit(EXIT_FAILURE);
     }
     int optval = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0){
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0){ // уровень сокета, повторное использование адреса и порта
         perror("Setsockopt fail");
         exit(EXIT_FAILURE);
     }
     return sockfd;
 }
 
-void bindSocket(int sockfd, int port) {
+void bindSocketToPort(int sockfd, int port) {
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(port);
     if (bind(sockfd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0){
         perror("Bind fail");
@@ -39,7 +39,7 @@ void runEchoServer(int sockfd) {
     struct sockaddr_in clientAddr;
     socklen_t clientLen = sizeof(clientAddr);
     while (1) {
-        ssize_t recvLen = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &clientAddr, &clientLen);
+        ssize_t recvLen = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &clientAddr, &clientLen);//кол-во байт
         if (recvLen < 0){
             perror("recvfrom fail");
             exit(EXIT_FAILURE);
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     int sockfd = createUdpSocket();
-    bindSocket(sockfd, port);
+    bindSocketToPort(sockfd, port);
     runEchoServer(sockfd);
     close(sockfd);
     return 0;

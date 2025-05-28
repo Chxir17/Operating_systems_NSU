@@ -36,7 +36,7 @@ void connectToServer(struct sockaddr_in *serverAddr, const char* serverIP, int p
         close(clientSocket);
         exit(EXIT_FAILURE);
     }
-    printf("Connected to server %s:%d\n", serverIP, port);
+    printf("Connected!");
 }
 
 void clientLoop() {
@@ -58,13 +58,17 @@ void clientLoop() {
         if (bytesReceived < 0) {
             perror("Receive error");
             break;
-        } else if (bytesReceived == 0) {
+        }
+        else if (bytesReceived == 0) {
             printf("Server closed the connection.\n");
             break;
         }
 
         buffer[bytesReceived] = '\0';
         printf("Server reply: %s", buffer);
+        if (strstr(buffer, "Server down.\n")){
+              break;
+        }
     }
 }
 
@@ -80,8 +84,6 @@ int main(int argc, char *argv[]) {
 
     connectToServer(&serverAddr, serverIP, port);
     clientLoop();
-
-    printf("\nClient down\n");
     close(clientSocket);
     exit(EXIT_SUCCESS);
 }
