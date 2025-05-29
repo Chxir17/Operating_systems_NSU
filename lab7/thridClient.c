@@ -10,12 +10,6 @@
 
 int clientSocket;
 
-void sigintHandler(int sig) {
-    printf("\nClient down\n");
-    close(clientSocket);
-    exit(EXIT_SUCCESS);
-}
-
 void connectToServer(struct sockaddr_in *serverAddr, const char* serverIP, int port) {
     if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
@@ -66,9 +60,6 @@ void clientLoop() {
 
         buffer[bytesReceived] = '\0';
         printf("Server reply: %s", buffer);
-        if (strstr(buffer, "Server down.\n")){
-              break;
-        }
     }
 }
 
@@ -80,8 +71,6 @@ int main(int argc, char *argv[]) {
     const char *serverIP = argv[1];
     int port = atoi(argv[2]);
     struct sockaddr_in serverAddr;
-    signal(SIGINT, sigintHandler);
-
     connectToServer(&serverAddr, serverIP, port);
     clientLoop();
     close(clientSocket);

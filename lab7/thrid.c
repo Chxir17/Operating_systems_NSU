@@ -12,21 +12,10 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 16
 
-int serverSocket;
 int clientSockets[MAX_CLIENTS] = {0};
 
 
-void sigintHandler(int sig) {
-    printf("\nServer down\n");
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (clientSockets[i] > 0) {
-            send(clientSockets[i], "Server down.\n", 26, 0);
-            close(clientSockets[i]);
-        }
-    }
-    close(serverSocket);
-    exit(EXIT_SUCCESS);
-}
+
 
 void removeClient(int sd) {
     close(sd);
@@ -40,12 +29,12 @@ void removeClient(int sd) {
 
 void handleClientMessage(int socket) {
     char buffer[BUFFER_SIZE];
-    ssize_t valread = read(socket, buffer, sizeof(buffer));
-    if (valread < 0) {
+    ssize_t toRead = read(socket, buffer, sizeof(buffer));
+    if (toRead < 0) {
         perror("Read error");
         removeClient(socket);
     }
-    else if (valread == 0) {
+    else if (toRead == 0) {
         struct sockaddr_in addr;
         socklen_t len = sizeof(addr);
         getpeername(socket, (struct sockaddr *)&addr, &len);
@@ -53,8 +42,10 @@ void handleClientMessage(int socket) {
         removeClient(socket);
     }
     else {
-        if (valread < BUFFER_SIZE) buffer[valread] = '\0';
-        if (send(socket, buffer, valread, 0) != valread) {
+        if (toRead < BUFFER_SIZE){
+          buffer[toRead] = '\0';
+        }
+        if (send(socket, buffer, toRead, 0) != toRead) {
             perror("Send error");
             removeClient(socket);
         }
@@ -69,16 +60,15 @@ void addNewClient(int newSocket, struct sockaddr_in *clientAddr) {
             return;
         }
     }
-
     printf("Max clients. Reject %s:%d\n", inet_ntoa(clientAddr->sin_addr), ntohs(clientAddr->sin_port));
     send(newSocket, "Server is full.\n", 33, 0);
     close(newSocket);
 }
 
-void setupServer(int port) {
+int setupServer(int port) {
     struct sockaddr_in serverAddr;
     int opt = 1;
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0 ) {
         perror("Socket create fail");
         exit(EXIT_FAILURE);
@@ -107,9 +97,10 @@ void setupServer(int port) {
     }
 
     printf("Server listening on port %d\n", port);
+    return serverSocket;
 }
 
-void serverLoop() {
+void serverLoop(int serverSocket) {
     fd_set descriptors;
     int maxSocket;
     while (1) {
@@ -162,14 +153,11 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     int port = atoi(argv[1]);
-    signal(SIGINT, sigintHandler);
-    setupServer(port);
-    serverLoop();
+    int serverSocket = setupServer(port);
+    serverLoop(serverSocket);
 
-    printf("\nServer down\n");
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clientSockets[i] > 0) {
-            send(clientSockets[i], "Server down.\n", 26, 0);
             close(clientSockets[i]);
         }
     }

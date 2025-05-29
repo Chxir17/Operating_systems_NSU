@@ -14,8 +14,8 @@ int createUdpSocket() {
         perror("Socket create fail");
         exit(EXIT_FAILURE);
     }
-    int optval = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0){ // уровень сокета, повторное использование адреса и порта
+    int param = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &param, sizeof(param)) < 0){ // уровень сокета, повторное использование адреса и порта
         perror("Setsockopt fail");
         exit(EXIT_FAILURE);
     }
@@ -26,7 +26,7 @@ void bindSocketToPort(int sockfd, int port) {
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;//привязка ко всем доступным интерфейсам
     serverAddr.sin_port = htons(port);
     if (bind(sockfd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0){
         perror("Bind fail");

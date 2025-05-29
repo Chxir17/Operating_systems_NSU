@@ -41,7 +41,7 @@ void communicate(int sockfd, const char* serverIP, int port) {
     while (1) {
         printf("Your message: ");
         if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-            printf("\nInput error or EOF. Exiting.\n");
+            printf("\nInput error or EOF.\n");
             break;
         }
         ssize_t toSend = strlen(buffer);

@@ -38,7 +38,7 @@ void setupSigchldHandler() {
         .sa_handler = sigchldHandler,
         .sa_flags = SA_RESTART //востановление после рестарта
     };
-    sigemptyset(&sa.sa_mask);
+    sigemptyset(&sa.sa_mask);//init + clear
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
         perror("Sigaction error");
         exit(EXIT_FAILURE);
@@ -52,8 +52,11 @@ int setupServerSocket(const int port) {
         perror("Socket create fail");
         exit(EXIT_FAILURE);
     }
-    int opt = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    int param = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &param, sizeof(param)) < 0){ // уровень сокета, повторное использование адреса и порта
+        perror("Setsockopt fail");
+        exit(EXIT_FAILURE);
+    }
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(port);
