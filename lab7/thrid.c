@@ -9,14 +9,13 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
-#define BUFFER_SIZE 1024
-#define MAX 16
 
+#define MAX 16
 
 
 typedef struct {
     int socket;
-    char sendBuffer[BUFFER_SIZE];
+    char sendBuffer[1024*10];
     unsigned long long sendLength;
     unsigned long long sendOffset;
 } Client;
@@ -55,10 +54,8 @@ void flushClientBuffer(Client *client) {
     while (client->sendLength > 0) {
         ssize_t sent = send(client->socket, client->sendBuffer + client->sendOffset, client->sendLength, 0);
         if (sent < 0) {
-            if (errno == EWOULDBLOCK || errno == EAGAIN) return;
             perror("Send error");
-            deleteClient(client->socket);
-            return;
+            break;
         }
         client->sendOffset += sent;
         client->sendLength -= sent;
@@ -69,38 +66,30 @@ void flushClientBuffer(Client *client) {
 }
 
 
+
+
 void handleMessage(Client *client) {
-    char buffer[BUFFER_SIZE];
+    char buffer[1024];
     ssize_t toRead = read(client->socket, buffer, sizeof(buffer));
-    if (toRead <= 0) {
-        if (toRead == 0) {
-            struct sockaddr_in addr;
-            socklen_t len = sizeof(addr);
-            getpeername(client->socket, (struct sockaddr *)&addr, &len);
-            printf("Client disconnected: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-        } else {
-            perror("Read error");
-        }
+
+    if (toRead < 0) {
+        perror("Read error");
+    }
+    else if (toRead == 0) {
+        struct sockaddr_in addr;
+        socklen_t len = sizeof(addr);
+        getpeername(client->socket, (struct sockaddr *)&addr, &len);
+        printf("Client disconnected: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
         deleteClient(client->socket);
-    } else {
-        if (toRead < BUFFER_SIZE) buffer[toRead] = '\0';
-        if (client->sendLength == 0) {
-            ssize_t sent = send(client->socket, buffer, toRead, 0);
-            if (sent < toRead) {
-                if (sent < 0) sent = 0;
-                memcpy(client->sendBuffer, buffer + sent, toRead - sent);
-                client->sendLength = toRead - sent;
-                client->sendOffset = 0;
-            }
-        } else {
-            if (client->sendLength + toRead < BUFFER_SIZE) {
-                memcpy(client->sendBuffer + client->sendLength, buffer, toRead);
-                client->sendLength += toRead;
-            } else {
-                fprintf(stderr, "Send buffer overflow\n");
-                deleteClient(client->socket);
-            }
+    }
+    else {
+        if (client->sendLength + toRead > 10*1024) {
+            fprintf(stderr, "Send buffer overflow, dropping client.\n");
+            deleteClient(client->socket);
+            return;
         }
+        memcpy(client->sendBuffer + client->sendLength, buffer, toRead);
+        client->sendLength += toRead;
     }
 }
 
@@ -134,8 +123,6 @@ int setupServer(int port) {
         close(serverSocket);
         exit(EXIT_FAILURE);
     }
-
-    printf("Server listening on port %d\n", port);
     return serverSocket;
 }
 
@@ -173,7 +160,8 @@ void serverLoop(int serverSocket) {
             int newSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrLen);
             if (newSocket >= 0) {
                 addClient(newSocket, &clientAddr);
-            } else {
+            }
+            else {
                 perror("accept error");
             }
         }
