@@ -9,7 +9,7 @@
 #define BUFFER_SIZE 1024
 
 int createUdpSocket() {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);//тип ipv4, тип потока datagram, протокол
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);// протокол, с которым будет работать сокет ipv4, характер передаваемых данных datagram, протокол
     if (sockfd < 0){
         perror("Socket create fail");
         exit(EXIT_FAILURE);
@@ -39,7 +39,9 @@ void runEchoServer(int sockfd) {
     struct sockaddr_in clientAddr;
     socklen_t clientLen = sizeof(clientAddr);
     while (1) {
-        ssize_t recvLen = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &clientAddr, &clientLen);//кол-во байт
+
+
+       ssize_t recvLen = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &clientAddr, &clientLen);//кол-во байт
         if (recvLen < 0){
             perror("recvfrom fail");
             exit(EXIT_FAILURE);
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
     }
 
     int port = atoi(argv[1]);
-    if (port <= 0 || port > 65535) {
+    if (port < 0 || port > 65535) {
         fprintf(stderr, "Invalid port number: %d\n", port);
         return EXIT_FAILURE;
     }

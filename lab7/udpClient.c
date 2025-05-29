@@ -19,7 +19,7 @@ int createUdpSocket() {
 }
 
 struct hostent *resolveHostname(const char *serverIP) {
-    struct hostent *server = gethostbyname(serverIP);///etc/hosts
+    struct hostent *server = gethostbyname(serverIP);///йetc/hosts
     if (server == NULL) {
         fprintf(stderr, "Host %s not found\n", serverIP);
         exit(EXIT_FAILURE);

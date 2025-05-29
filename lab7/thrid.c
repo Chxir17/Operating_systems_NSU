@@ -10,59 +10,98 @@
 #include <sys/select.h>
 
 #define BUFFER_SIZE 1024
-#define MAX_CLIENTS 16
-
-int clientSockets[MAX_CLIENTS] = {0};
+#define MAX 16
 
 
 
+typedef struct {
+    int socket;
+    char sendBuffer[BUFFER_SIZE];
+    unsigned long long sendLength;
+    unsigned long long sendOffset;
+} Client;
 
-void removeClient(int sd) {
-    close(sd);
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (clientSockets[i] == sd) {
-            clientSockets[i] = 0;
+Client clients[MAX] = {0};
+
+
+void addClient(int newSocket, struct sockaddr_in *clientAddr) {
+    for (int i = 0; i < MAX; i++) {
+        if (clients[i].socket == 0) {
+            clients[i].socket = newSocket;
+            clients[i].sendLength = 0;
+            clients[i].sendOffset = 0;
+            printf("Client added %s:%d\n", inet_ntoa(clientAddr->sin_addr), ntohs(clientAddr->sin_port));
+            return;
+        }
+    }
+    send(newSocket, "Server is full.\n", 17, 0);
+    close(newSocket);
+}
+
+
+void deleteClient(int sd) {
+    for (int i = 0; i < MAX; i++) {
+        if (clients[i].socket == sd) {
+            close(clients[i].socket);
+            clients[i].socket = 0;
+            clients[i].sendLength = 0;
+            clients[i].sendOffset = 0;
             break;
         }
     }
 }
 
-void handleClientMessage(int socket) {
-    char buffer[BUFFER_SIZE];
-    ssize_t toRead = read(socket, buffer, sizeof(buffer));
-    if (toRead < 0) {
-        perror("Read error");
-        removeClient(socket);
-    }
-    else if (toRead == 0) {
-        struct sockaddr_in addr;
-        socklen_t len = sizeof(addr);
-        getpeername(socket, (struct sockaddr *)&addr, &len);
-        printf("Client disconnected: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-        removeClient(socket);
-    }
-    else {
-        if (toRead < BUFFER_SIZE){
-          buffer[toRead] = '\0';
-        }
-        if (send(socket, buffer, toRead, 0) != toRead) {
+void flushClientBuffer(Client *client) {
+    while (client->sendLength > 0) {
+        ssize_t sent = send(client->socket, client->sendBuffer + client->sendOffset, client->sendLength, 0);
+        if (sent < 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN) return;
             perror("Send error");
-            removeClient(socket);
+            deleteClient(client->socket);
+            return;
+        }
+        client->sendOffset += sent;
+        client->sendLength -= sent;
+        if (client->sendLength == 0) {
+            client->sendOffset = 0;
         }
     }
 }
 
-void addNewClient(int newSocket, struct sockaddr_in *clientAddr) {
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (clientSockets[i] == 0) {
-            clientSockets[i] = newSocket;
-            printf("Client added %s:%d at slot %d\n", inet_ntoa(clientAddr->sin_addr), ntohs(clientAddr->sin_port), i);
-            return;
+
+void handleMessage(Client *client) {
+    char buffer[BUFFER_SIZE];
+    ssize_t toRead = read(client->socket, buffer, sizeof(buffer));
+    if (toRead <= 0) {
+        if (toRead == 0) {
+            struct sockaddr_in addr;
+            socklen_t len = sizeof(addr);
+            getpeername(client->socket, (struct sockaddr *)&addr, &len);
+            printf("Client disconnected: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+        } else {
+            perror("Read error");
+        }
+        deleteClient(client->socket);
+    } else {
+        if (toRead < BUFFER_SIZE) buffer[toRead] = '\0';
+        if (client->sendLength == 0) {
+            ssize_t sent = send(client->socket, buffer, toRead, 0);
+            if (sent < toRead) {
+                if (sent < 0) sent = 0;
+                memcpy(client->sendBuffer, buffer + sent, toRead - sent);
+                client->sendLength = toRead - sent;
+                client->sendOffset = 0;
+            }
+        } else {
+            if (client->sendLength + toRead < BUFFER_SIZE) {
+                memcpy(client->sendBuffer + client->sendLength, buffer, toRead);
+                client->sendLength += toRead;
+            } else {
+                fprintf(stderr, "Send buffer overflow\n");
+                deleteClient(client->socket);
+            }
         }
     }
-    printf("Max clients. Reject %s:%d\n", inet_ntoa(clientAddr->sin_addr), ntohs(clientAddr->sin_port));
-    send(newSocket, "Server is full.\n", 33, 0);
-    close(newSocket);
 }
 
 int setupServer(int port) {
@@ -101,50 +140,56 @@ int setupServer(int port) {
 }
 
 void serverLoop(int serverSocket) {
-    fd_set descriptors;
+    fd_set readSet, writeSet;
     int maxSocket;
     while (1) {
-        FD_ZERO(&descriptors);// очистка набора дискрипторов
-        FD_SET(serverSocket, &descriptors);//добавляет фд
+        FD_ZERO(&readSet);
+        FD_ZERO(&writeSet);
+        FD_SET(serverSocket, &readSet);
         maxSocket = serverSocket;
 
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            int socket = clientSockets[i];
+        for (int i = 0; i < MAX; i++) {
+            int socket = clients[i].socket;
             if (socket > 0) {
-                FD_SET(socket, &descriptors);
-            }
-            if (socket > maxSocket){
-                maxSocket = socket;
+                FD_SET(socket, &readSet);
+                if (clients[i].sendLength > 0) {
+                    FD_SET(socket, &writeSet);
+                }
+                if (socket > maxSocket) {
+                    maxSocket = socket;
+                }
             }
         }
 
-        int activity = select(maxSocket + 1, &descriptors, NULL, NULL, NULL);
+        int activity = select(maxSocket + 1, &readSet, &writeSet, NULL, NULL);
         if (activity < 0 && errno != EINTR) {
             perror("select error");
             continue;
         }
 
-        if (FD_ISSET(serverSocket, &descriptors)) {
+        if (FD_ISSET(serverSocket, &readSet)) {
             struct sockaddr_in clientAddr;
             socklen_t addrLen = sizeof(clientAddr);
             int newSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrLen);
-            if (newSocket < 0) {
+            if (newSocket >= 0) {
+                addClient(newSocket, &clientAddr);
+            } else {
                 perror("accept error");
-            }
-            else {
-                printf("New connection: %s:%d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-                addNewClient(newSocket, &clientAddr);
             }
         }
 
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            int socket = clientSockets[i];
-            if (socket > 0 && FD_ISSET(socket, &descriptors)) {
-                handleClientMessage(socket);
+        for (int i = 0; i < MAX; i++) {
+            int socket = clients[i].socket;
+            if (socket > 0 && FD_ISSET(socket, &readSet)) {
+                handleMessage(&clients[i]);
+            }
+            if (socket > 0 && FD_ISSET(socket, &writeSet)) {
+                flushClientBuffer(&clients[i]);
             }
         }
     }
 }
+
 
 
 int main(int argc, char *argv[]) {
@@ -156,9 +201,9 @@ int main(int argc, char *argv[]) {
     int serverSocket = setupServer(port);
     serverLoop(serverSocket);
 
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (clientSockets[i] > 0) {
-            close(clientSockets[i]);
+    for (int i = 0; i < MAX; i++) {
+        if (clients[i].socket > 0) {
+            close(clients[i].socket);
         }
     }
     close(serverSocket);
