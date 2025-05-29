@@ -82,7 +82,10 @@ int main(int argc, char *argv[]) {
 
         while (1) {
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) break;
+
+            if (WIFEXITED(status)) {
+                break;
+            }
 
             struct iovec iov = {
                 .iov_base = &regs,
@@ -99,12 +102,18 @@ int main(int argc, char *argv[]) {
             ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
 
             waitpid(child_pid, &status, 0);
-            if (WIFEXITED(status)) break;
 
+            if (WIFEXITED(status)) {
+                break;
+            }
             if (ptrace(PTRACE_GETREGSET, child_pid, (void*)NT_PRSTATUS, &iov) == -1) {
                 perror("ptrace GETREGSET");
                 break;
             }
+
+
+
+
 
             long retval = regs.regs[0];
             printf("[EXIT ] Return: %ld\n", retval);
