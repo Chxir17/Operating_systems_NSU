@@ -7,23 +7,27 @@
 #include <unistd.h>
 
 void *mythread(void *arg) {
+    *((int *)arg) = 42;
     printf("mythread [%d %d %d]: Hello from mythread!\n", getpid(), getppid(), gettid());
-    return NULL;
+    return arg;
 }
 
 int main() {
     pthread_t tid;
     int err;
+    int value;
+    int *valueP = &value;
     printf("main [%d %d %d]: Hello from main!\n", getpid(), getppid(), gettid());
-    err = pthread_create(&tid, NULL, mythread, NULL);
+    err = pthread_create(&tid, NULL, mythread, &value);
     if (err) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return -1;
     }
-    err = pthread_join(tid, NULL);
+    err = pthread_join(tid, (void **)&valueP);
     if (err) {
-      printf("main: pthread_join() failed: %s\n", strerror(err));
-      return -1;
+        printf("main: pthread_join() failed: %s\n", strerror(err));
+        return -1;
     }
+    printf("42 = %d\n", value);
     return 0;
 }

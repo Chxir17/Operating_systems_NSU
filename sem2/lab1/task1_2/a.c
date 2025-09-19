@@ -22,8 +22,8 @@ int main() {
     }
     err = pthread_join(tid, NULL);
     if (err) {
-      printf("main: pthread_join() failed: %s\n", strerror(err));
-      return -1;
+        printf("main: pthread_join() failed: %s\n", strerror(err));
+        return -1;
     }
     return 0;
 }
