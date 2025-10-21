@@ -13,7 +13,7 @@ void free_mem(void *args){
 }
 
 void *mythread(void *args){
-    char *hello_str = (char *)malloc(sizeof(char) * 14);
+    char *hello_str = malloc(sizeof(char) * 14);
     strcpy(hello_str, "Hello, World!");
     pthread_cleanup_push(free_mem, hello_str);
     while (1){
@@ -21,7 +21,6 @@ void *mythread(void *args){
         sleep(1);
     }
     pthread_cleanup_pop(1);
-    return NULL;
 }
 
 int main(){

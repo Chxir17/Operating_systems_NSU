@@ -1,15 +1,15 @@
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 void *mythread(void *args){
     while (1){
-        printf("thread id: %lu\n", pthread_self());
+        printf("thread id: %p\n", pthread_self());
         sleep(1);
     }
-    return NULL;
 }
 
 int main(){

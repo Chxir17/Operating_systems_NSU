@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -13,7 +14,6 @@ void *mythread(void *args){
         counter++;
 //        pthread_testcancel();
     }
-    return NULL;
 }
 
 int main(){

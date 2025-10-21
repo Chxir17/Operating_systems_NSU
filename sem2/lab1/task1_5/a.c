@@ -7,12 +7,12 @@
 #include <sys/types.h>
 
 void sigint_handler(int arg) {
-    printf("handler: %lu\n", pthread_self());
+    printf("handler: %p\n", pthread_self());
     printf("SIGINT HANDLER: got sigint (%d),  %d\n", SIGINT, arg);
 }
 
 void *mythread_sigint(void *args) {
-    printf("thread SIGINT: %lu\n", pthread_self());
+    printf("thread SIGINT: %p\n", pthread_self());
     signal(SIGINT, sigint_handler);
     if (errno) {
         perror("thread SIGINT: error setting sigint handler");
@@ -27,7 +27,7 @@ void *mythread_sigint(void *args) {
 }
 
 void *mythread_sigquit(void *args) {
-    printf("thread SIGQUIT: %lu\n", pthread_self());
+    printf("thread SIGQUIT: %p\n", pthread_self());
     int err;
     sigset_t set;
     int signal_code;
@@ -59,7 +59,7 @@ void *mythread_sigquit(void *args) {
 }
 
 void *thread_foo_immortal(void *args) {
-    printf("thread 3: %lu\n", pthread_self());
+    printf("thread 3: %p\n", pthread_self());
     int err;
     sigset_t mask;
 
@@ -82,7 +82,7 @@ void *thread_foo_immortal(void *args) {
 
 int main() {
     // signal(SIGINT, sigint_handler);
-    printf("thread main: %lu\n", pthread_self());
+    printf("thread main: %p\n", pthread_self());
     pthread_t tid1;
     pthread_t tid2;
     pthread_t tid3;
