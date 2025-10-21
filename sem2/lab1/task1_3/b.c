@@ -27,7 +27,7 @@ int main() {
     }
     structure->a = 42;
     structure->b = "Hello, world!";
-    printf("main: struct initialized with %d, %s", structure->a, structure->b);
+    printf("main: struct initialized with %d, %s\n", structure->a, structure->b);
     pthread_t tid;
     pthread_attr_t attr;
     int err;

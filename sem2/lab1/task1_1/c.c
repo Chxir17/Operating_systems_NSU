@@ -15,9 +15,10 @@ void *mythread(void *arg) {
 
     pthread_t self_id = pthread_self();
 
-    printf("Thread [PID=%d, PPID=%d, TID=%ld, pthread_self=%ld]\n"
+    printf("Thread [PID=%d, PPID=%d, TID=%d, pthread_self=%ld]\n"
            "Addresses: lvar=%p, svar=%p, cvar=%p, gvar=%p\n", getpid(), getppid(), gettid(), self_id, &lvar, &svar, &cvar, &gvar);
     pthread_t *passed_id = (pthread_t *)arg;
+    sleep(6);
     if (passed_id != NULL) {
         if (pthread_equal(*passed_id, self_id)) {
             printf("pthread_equal: YES, pthread_self() matches passed ID\n");

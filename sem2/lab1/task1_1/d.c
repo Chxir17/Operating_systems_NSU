@@ -15,9 +15,9 @@ void *mythread(void *arg) {
     const int cvar = 30;
     int lvar = 40;
     printf("Thread [PID=%d, PPID=%d, TID=%d, pthread_self=%ld]\nAddresses: lvar=%p, svar=%p, cvar=%p, gvar=%p\nVaribles: lvar=%d, gvar=%d\n", getpid(), getppid(), gettid(), pthread_self(), &lvar, &svar, &cvar, &gvar, lvar, gvar);
-    sleep(90);
     lvar++;
     gvar++;
+    sleep(90);
     return NULL;
 }
 
@@ -25,6 +25,7 @@ int main() {
 
     pthread_t tids[NUM_THREADS];
     for (int i = 0; i < NUM_THREADS; i++) {
+        sleep(4);
         int err = pthread_create(&tids[i], NULL, mythread, NULL);
         if (err) {
             for (int j = 0; j < i; j++) {
