@@ -9,21 +9,21 @@
 
 
 void *mythread(void *arg) {
-    printf("mythread [%d %d %d]: Hello from mythread!\n", getpid(), getppid(), gettid());
+    printf("mythread pid: %d ppid: %d tid %d: Hello from mythread!\n", getpid(), getppid(), gettid());
     return NULL;
 }
 
-int main() {
 
+int main() {
     pthread_t tids[NUM_THREADS];
     for (int i = 0; i < NUM_THREADS; i++) {
         int err = pthread_create(&tids[i], NULL, mythread, NULL);
         if (err) {
-          for (int j = 0; j < i; j++) {
-            pthread_join(tids[j], NULL);
-          }
-          printf("pthread_create %d failed with error %d\n",i , err);
-          return -1;
+            for (int j = 0; j < i; j++) {
+                pthread_join(tids[j], NULL);
+            }
+            printf("pthread_create %d failed with error %d\n",i , err);
+            return -1;
         }
     }
     for (int i = 0; i < NUM_THREADS; i++) {
