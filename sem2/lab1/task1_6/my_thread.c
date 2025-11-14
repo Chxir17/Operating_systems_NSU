@@ -83,7 +83,7 @@ int my_thread_create(my_thread_t *thread, start_routine_t routine, void *arg) {
 
 
     //VM - общая память с родителем FS - общие системные атрибуты FILES - общие дескрипторы // SIGHAND - общие обработчики сигналов //Thread - поток тогоже процесса
-    int pid = clone(thread_func, (void *)(char *)t, CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD, t);
+    int pid = clone((void *)thread_func, (void *)(char *)t, CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD, t);
     if (pid == -1) {
         perror("clone failed");
         munmap(region, STACK_SIZE);
