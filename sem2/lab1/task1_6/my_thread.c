@@ -3,10 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
 #include <sched.h>
-#include <string.h>
 #include <pthread.h>
 #include <linux/futex.h>
 #include <syscall.h>
@@ -107,7 +105,7 @@ void my_thread_join(my_thread_t *thread, void **retval){
     }
     (*thread)->futex = 0;
     munmap((*thread)->stack, getpagesize());
-    printf("thread joined\n");
+    printf("Thread joined\n");
 }
 
 int my_thread_detach(my_thread_t *thread) {
