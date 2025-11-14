@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -10,6 +9,8 @@ void *mythread(void *arg) {
     printf("mythread [%d %d %d]: Hello from mythread!\n", getpid(), getppid(), gettid());
     return NULL;
 }
+
+
 
 int main() {
     pthread_t tid;

@@ -15,19 +15,20 @@ void free_mem(void *args){
 void *mythread(void *args){
     char *hello_str = malloc(sizeof(char) * 14);
     strcpy(hello_str, "Hello, World!");
-    pthread_cleanup_push(free_mem, hello_str);
+    pthread_cleanup_push(free_mem, hello_str);//2
+    pthread_cleanup_push(free_mem, hello_str);//1
     while (1){
         printf("thread: %s\n", hello_str);
         sleep(1);
     }
-    pthread_cleanup_pop(1);
+    pthread_cleanup_pop(1);//1
+    pthread_cleanup_pop(1);//2
 }
 
 int main(){
     pthread_t tid;
-    int err;
 
-    err = pthread_create(&tid, NULL, mythread, NULL);
+    int err = pthread_create(&tid, NULL, mythread, NULL);
     if (err){
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return -1;

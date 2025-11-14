@@ -8,12 +8,13 @@
 
 void *mythread(void *args){
     long long counter = 0;
-//    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-//    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     while (1){
         counter++;
-//        pthread_testcancel();
+
     }
+    pthread_testcancel();
 }
 
 int main(){

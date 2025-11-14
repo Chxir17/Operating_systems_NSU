@@ -20,6 +20,7 @@ int main() {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return -1;
     }
+
     err = pthread_join(tid, NULL);
 
     if (err) {

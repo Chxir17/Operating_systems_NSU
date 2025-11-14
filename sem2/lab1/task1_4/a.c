@@ -7,7 +7,7 @@
 
 void *mythread(void *args){
     while (1){
-        printf("thread id: %p\n", pthread_self());
+        printf("thread id: %ld\n", pthread_self());
         sleep(1);
     }
 }

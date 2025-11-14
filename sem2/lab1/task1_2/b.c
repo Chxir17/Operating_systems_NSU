@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 void *mythread(void *arg) {
-    *((int *)arg) = 42;
+    *(int *)arg = 42;
     printf("mythread [%d %d %d]: Hello from mythread!\n", getpid(), getppid(), gettid());
     return arg;
 }
