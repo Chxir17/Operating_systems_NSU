@@ -5,32 +5,26 @@
 #include <unistd.h>
 
 void *my_thread_func(void *arg) {
-    printf("mythread [%d %d %d]\n", getpid(), getppid(), gettid());
+    printf("mythread: PID:%d PPID:%d TID:%d]\n", getpid(), getppid(), gettid());
     printf("Thread starts with args: %s\n", (char *)arg);
     int *res = malloc(sizeof(int));
-    *res = 10;
+    *res = 0;
     return res;
 }
 
-int main()
-{
-    mythread_t thread;
-    char *arg = "Hi!";
-    printf("         [PID  PPID  TID]\n");
-
-    printf("main     [%d %d %d]: Hello from main!\n", getpid(), getppid(), gettid());
-
-    if (mythread_create(&thread, my_thread_func, arg) == -1)
-    {
+int main() {
+    my_thread_t thread;
+    char *arg = "Hello world!";
+    printf("main: PID:%d PPID:%d TID:%d]\n", getpid(), getppid(), gettid());
+    int err = my_thread_create(&thread, my_thread_func, arg);
+    if (err != 0) {
         printf("Cannot create thread");
         return 1;
     }
     void *retval;
-    mythread_join(&thread, &retval);
+    my_thread_join(&thread, &retval);
     int result = *(int *)retval;
     free(retval);
-    sleep(5);
     printf("Thread finished with arg %d\n", result);
-
     return 0;
 }
