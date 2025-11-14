@@ -25,6 +25,6 @@ int main() {
     my_thread_join(&thread, &retval);
     int result = *(int *)retval;
     free(retval);
-    printf("Thread finished with arg %d\n", result);
+    printf("Thread finished with result %d\n", result);
     return 0;
 }
