@@ -19,7 +19,7 @@ void thread2(void *arg, u_thread_manager_t *uthread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread2[%d]: %s\n", i, str);
-        u_thread_usleep(uthread_manager, 1000000);
+        u_thread_usleep(uthread_manager, 2000000);
         u_thread_scheduler(uthread_manager);
     }
 }
@@ -28,7 +28,7 @@ void thread3(void *arg, u_thread_manager_t *uthread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread3[%d]: %s\n", i, str);
-        u_thread_usleep(uthread_manager, 1000000);
+        u_thread_usleep(uthread_manager, 500000);
         u_thread_scheduler(uthread_manager);
     }
 }
