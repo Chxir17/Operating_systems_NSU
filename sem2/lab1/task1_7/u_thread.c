@@ -31,9 +31,15 @@ int u_thread_startup(void *arg, void *u_thread_manager) {
     return 0;
 }
 
-void u_thread_usleep(u_thread_manager_t *mgr, long long usec) {
+void uthread_usleep(u_thread_manager_t *mgr, long long usec) {
+    if (mgr->u_thread_cur == 0) {
+        u_thread_scheduler(mgr);
+        return;
+    }
+
     u_thread_struct_t *cur = mgr->uthreads[mgr->u_thread_cur];
     cur->sleep_until_us = now_us() + usec;
+
     u_thread_scheduler(mgr);
 }
 
@@ -47,33 +53,36 @@ void *create_stack(off_t size) {
 }
 
 void u_thread_scheduler(u_thread_manager_t *mgr) {
-    ucontext_t *cur_ctx = &mgr->uthreads[mgr->u_thread_cur]->u_ctx;
-    int next = mgr->u_thread_cur;
-
+    int start = mgr->u_thread_cur;
+    int next = start;
     long long t = now_us();
 
-    for (;;) {
+    do {
         next = (next + 1) % mgr->u_thread_count;
 
         u_thread_struct_t *thr = mgr->uthreads[next];
 
         if (thr->finished)
             continue;
+
         if (thr->sleep_until_us > t)
             continue;
 
         break;
+    } while (next != start);
+
+    if (next == start) {
+        return;
     }
+
+    ucontext_t *cur_ctx = &mgr->uthreads[mgr->u_thread_cur]->u_ctx;
+    ucontext_t *next_ctx = &mgr->uthreads[next]->u_ctx;
 
     mgr->u_thread_cur = next;
 
-    ucontext_t *next_ctx = &mgr->uthreads[next]->u_ctx;
-
-    if (swapcontext(cur_ctx, next_ctx) == -1) {
-        perror("sheduler swapcontext");
-        exit(1);
-    }
+    swapcontext(cur_ctx, next_ctx);
 }
+
 
 int u_thread_create(u_thread_t *u_thread, u_thread_manager_t *u_thread_manager, void (*thread_func), void *arg) {
     static int u_thread_id = 0;
