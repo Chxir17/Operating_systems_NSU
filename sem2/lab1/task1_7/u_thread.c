@@ -11,10 +11,10 @@
 #include "u_thread.h"
 #include <sys/time.h>
 
-long long now_us() {
+long long now_us(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (long long)tv.tv_sec * 1000000LL + (long long)tv.tv_usec;
+    return (long long)tv.tv_sec * 1000000LL + tv.tv_usec;
 }
 
 int u_thread_startup(void *arg, void *u_thread_manager) {
@@ -131,15 +131,26 @@ int thread_is_finished(u_thread_t u_tid) {
 }
 
 void init_thread(u_thread_t *main_thread, u_thread_manager_t *mgr) {
-    getcontext(&(*main_thread)->u_ctx);
+    u_thread_struct_t *mt = malloc(sizeof(u_thread_struct_t));
+    if (!mt) {
+        perror("malloc main thread");
+        exit(1);
+    }
 
-    (*main_thread)->u_thread_id = 0;
-    (*main_thread)->thread_func = NULL;
-    (*main_thread)->arg = NULL;
-    (*main_thread)->finished = 0;
-    (*main_thread)->sleep_until_us = 0;
+    if (getcontext(&mt->u_ctx) == -1) {
+        perror("getcontext for main thread");
+        exit(1);
+    }
 
-    mgr->uthreads[0] = *main_thread;
+    mt->u_thread_id = 0;
+    mt->thread_func = NULL;
+    mt->arg = NULL;
+    mt->retval = NULL;
+    mt->finished = 0;
+    mt->sleep_until_us = 0;
+
+    *main_thread = mt;
+    mgr->uthreads[0] = mt;
     mgr->u_thread_count = 1;
     mgr->u_thread_cur = 0;
 }
