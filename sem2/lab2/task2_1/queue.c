@@ -13,7 +13,6 @@ void *qmonitor(void *arg) {
         queue_print_stats(q);
         sleep(1);
     }
-
     return NULL;
 }
 
@@ -44,16 +43,22 @@ queue_t* queue_init(int max_count) {
 }
 
 void queue_destroy(queue_t *q) {
+    int err;
+    err = pthread_cancel(q->qmonitor_tid);
+    if (err) {
+        printf("queue_destroy: pthread_cancel() failed: %s\n", strerror(err));
+    }
+    err = pthread_join(q->qmonitor_tid, NULL);
+    if (err) {
+        printf("queue_destroy: pthread_join() failed: %s\n", strerror(err));
+    }
     qnode_t *tmp;
     while (q->count) {
         tmp = q->first;
         q->first = q->first->next;
-
         free(tmp);
         q->count--;
     }
-
-    pthread_cancel(q->qmonitor_tid);
 
     free(q);
     q = NULL;
@@ -79,6 +84,7 @@ int queue_add(queue_t *q, int val) {
     if (!q->first)
         q->first = q->last = new;
     else {
+        //
         q->last->next = new;
         q->last = q->last->next;
     }
@@ -101,7 +107,7 @@ int queue_get(queue_t *q, int *val) {
 
     *val = tmp->val;
     q->first = q->first->next;
-
+    //
     free(tmp);
     q->count--;
     q->get_count++;

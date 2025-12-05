@@ -34,7 +34,7 @@ void *my_thread_sigquit(void *args) {
         perror("thread SIGQUIT: error setting empty set");
         return NULL;
     }
-    err = sigaddset(&set, SIGQUIT);
+    err = sigaddset(&set, SIGINT);
     if (err) {
         perror("thread SIGQUIT: error adding SIGQUIT to set");
         return NULL;
@@ -57,7 +57,7 @@ void *my_thread_sigquit(void *args) {
     }
 }
 
-void *thread_foo_immortal(void *args) {
+void *thread_3(void *args) {
     printf("thread 3: %p\n", pthread_self());
     sigset_t set;
     int err = sigfillset(&set);
@@ -77,11 +77,12 @@ void *thread_foo_immortal(void *args) {
 
 int main() {
 
-    // sigset_t set;
-    // sigemptyset(&set);
-    // sigaddset(&set, SIGQUIT);
+     // sigset_t set;
+     // sigemptyset(&set);
+     // sigaddset(&set, SIGINT);
     // sigprocmask(SIG_BLOCK, &set, NULL);
 
+    // sigprocmask(SIG_SETMASK, &set, NULL);
     printf("thread main: %p\n", pthread_self());
     pthread_t tid1, tid2, tid3;
 
@@ -99,9 +100,11 @@ int main() {
     }
     printf("main: thread SIGQUIT started\n");
 
-    err = pthread_create(&tid3, NULL, thread_foo_immortal, NULL);
+    // sigprocmask(SIG_SETMASK, &set, NULL);
+
+    err = pthread_create(&tid3, NULL, thread_3, NULL);
     if (err) {
-        perror("main: error creating thread 2");
+        perror("main: error creating thread 3");
         return -1;
     }
     printf("main: thread immortal started\n");
