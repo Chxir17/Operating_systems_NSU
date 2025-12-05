@@ -31,7 +31,7 @@ int u_thread_startup(void *arg, void *u_thread_manager) {
     return 0;
 }
 
-void uthread_usleep(u_thread_manager_t *mgr, long long usec) {
+void u_thread_usleep(u_thread_manager_t *mgr, long long usec) {
     if (mgr->u_thread_cur == 0) {
         u_thread_scheduler(mgr);
         return;
