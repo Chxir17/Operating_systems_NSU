@@ -4,43 +4,37 @@
 
 #include "u_thread.h"
 
-#define THREADS 4
-
-void thread1(void *arg, u_thread_manager_t *uthread_manager) {
+void thread1(void *arg, u_thread_manager_t *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread1[%d]: %s\n", i, str);
-        u_thread_usleep(uthread_manager, 1000000);
-        u_thread_scheduler(uthread_manager);
+        u_thread_usleep(u_thread_manager, 1000000);
     }
 }
 
-void thread2(void *arg, u_thread_manager_t *uthread_manager) {
+void thread2(void *arg, u_thread_manager_t *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread2[%d]: %s\n", i, str);
-        u_thread_usleep(uthread_manager, 2000000);
-        u_thread_scheduler(uthread_manager);
+        u_thread_usleep(u_thread_manager, 2000000);
     }
 }
 
-void thread3(void *arg, u_thread_manager_t *uthread_manager) {
+void thread3(void *arg, u_thread_manager_t *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread3[%d]: %s\n", i, str);
-        u_thread_usleep(uthread_manager, 500000);
-        u_thread_scheduler(uthread_manager);
+        u_thread_usleep(u_thread_manager, 500000);
     }
 }
 
 int main() {
-    u_thread_t my_threads[THREADS];
+    u_thread_t my_threads[4];
     u_thread_t main_thread;
     u_thread_manager_t *u_thread_manager = malloc(sizeof(u_thread_manager_t));
 
     init_thread(&main_thread, u_thread_manager);
     my_threads[0] = main_thread;
-
     printf("main [%d]\n", getpid());
 
     int err = u_thread_create(&my_threads[1], u_thread_manager, thread1, "hello from main1");
@@ -58,12 +52,12 @@ int main() {
 
     while (1) {
         int count = 0;
-        for (int i = 1; i < THREADS; i++) {
+        for (int i = 1; i < 4; i++) {
             if (thread_is_finished(my_threads[i])) {
                 count++;
             }
         }
-        if (count == THREADS - 1) {
+        if (count == 3) {
             break;
         }
         u_thread_scheduler(u_thread_manager);
