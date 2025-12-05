@@ -121,8 +121,16 @@ int thread_is_finished(u_thread_t u_tid) {
     return 0;
 }
 
-void init_thread(u_thread_t *main_thread, u_thread_manager_t *u_thread_manager) {
-    u_thread_manager->uthreads[0] = main_thread;
-    u_thread_manager->u_thread_count = 1;
-    u_thread_manager->u_thread_cur = 0;
+void init_thread(u_thread_t *main_thread, u_thread_manager_t *mgr) {
+    getcontext(&(*main_thread)->u_ctx);
+
+    (*main_thread)->u_thread_id = 0;
+    (*main_thread)->thread_func = NULL;
+    (*main_thread)->arg = NULL;
+    (*main_thread)->finished = 0;
+    (*main_thread)->sleep_until_us = 0;
+
+    mgr->uthreads[0] = *main_thread;
+    mgr->u_thread_count = 1;
+    mgr->u_thread_cur = 0;
 }

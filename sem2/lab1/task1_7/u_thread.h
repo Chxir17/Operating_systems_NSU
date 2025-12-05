@@ -2,7 +2,6 @@
 #define U_THREAD_H
 
 #include <ucontext.h>
-#include <sys/_types/_ucontext.h>
 
 #define PAGE 4096
 #define STACK_SIZE (PAGE * 5)
