@@ -1,3 +1,6 @@
+//Контекст — это сохранённое состояние выполнения программы, которое позволяет приостановить выполнение
+//и потом продолжить выполнение с того же места
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -62,8 +65,6 @@ int main() {
         }
         u_thread_scheduler(u_thread_manager);
     }
-
     free(u_thread_manager);
-
     return 0;
 }

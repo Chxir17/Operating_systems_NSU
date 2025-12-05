@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <pthread.h>
 #include <sched.h>
 
 #include "queue.h"
@@ -59,7 +58,7 @@ void *writer(void *arg) {
     queue_t *q = (queue_t *)arg;
     printf("writer [%d %d %d]\n", getpid(), getppid(), gettid());
 
-    set_cpu(1);
+    set_cpu(2);
 
     while (1) {
         int ok = queue_add(q, i);
@@ -79,14 +78,14 @@ int main() {
 
     printf("main [%d %d %d]\n", getpid(), getppid(), gettid());
 
-    q = queue_init(10000);
+    q = queue_init(100000000);
 
     err = pthread_create(&tid_reader, NULL, reader, q);
     if (err) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return -1;
     }
-    sched_yield();
+    //sched_yield();
 
     err = pthread_create(&tid_writer, NULL, writer, q);
     if (err) {
@@ -100,5 +99,8 @@ int main() {
     if (pthread_join(tid_writer, NULL)) {
         perror("pthread_join - tid_writer");
     }
+
+    queue_destroy(q);
+
     return 0;
 }

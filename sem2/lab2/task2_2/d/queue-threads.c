@@ -100,5 +100,6 @@ int main() {
     if (pthread_join(tid_writer, NULL)) {
         perror("pthread_join - tid_writer");
     }
+
     return 0;
 }

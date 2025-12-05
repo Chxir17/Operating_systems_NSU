@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <pthread.h>
 #include <sched.h>
 
 #include "queue.h"
@@ -59,7 +58,7 @@ void *writer(void *arg) {
     queue_t *q = (queue_t *)arg;
     printf("writer [%d %d %d]\n", getpid(), getppid(), gettid());
 
-    set_cpu(1);
+    set_cpu(2);
 
     while (1) {
         int ok = queue_add(q, i);
@@ -72,29 +71,36 @@ void *writer(void *arg) {
 }
 
 int main() {
-    pthread_t tid;
+    pthread_t tid_reader;
+    pthread_t tid_writer;
     queue_t *q;
+    int err;
 
     printf("main [%d %d %d]\n", getpid(), getppid(), gettid());
 
-    q = queue_init(1000000);
+    q = queue_init(100000000);
 
-    int err = pthread_create(&tid, NULL, reader, q);
+    err = pthread_create(&tid_reader, NULL, reader, q);
+    if (err) {
+        printf("main: pthread_create() failed: %s\n", strerror(err));
+        return -1;
+    }
+    //sched_yield();
+
+    err = pthread_create(&tid_writer, NULL, writer, q);
     if (err) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return -1;
     }
 
-    sched_yield();
-
-    err = pthread_create(&tid, NULL, writer, q);
-    if (err) {
-        printf("main: pthread_create() failed: %s\n", strerror(err));
-        return -1;
+    if (pthread_join(tid_reader, NULL)) {
+        perror("pthread_join - tid_reader");
+    }
+    if (pthread_join(tid_writer, NULL)) {
+        perror("pthread_join - tid_writer");
     }
 
-
-    pthread_exit(NULL);
+    queue_destroy(q);
 
     return 0;
 }
