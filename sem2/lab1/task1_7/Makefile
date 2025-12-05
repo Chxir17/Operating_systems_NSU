@@ -5,7 +5,7 @@ TYPE=.c
 CC=gcc
 RM=rm
 CFLAGS=-Wall
-LIBS=/uthread.c
+LIBS=./uthread.c
 LDFLAGS=-o $@
 
 TMPFILES=.stack.*
