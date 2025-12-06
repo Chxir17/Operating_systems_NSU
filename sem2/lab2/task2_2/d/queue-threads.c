@@ -62,6 +62,7 @@ void *writer(void *arg) {
     set_cpu(1);
 
     while (1) {
+        usleep(1);
         int ok = queue_add(q, i);
         if (!ok)
             continue;

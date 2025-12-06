@@ -77,23 +77,19 @@ int queue_add(queue_t *q, int val) {
         printf("Cannot allocate memory for new node\n");
         abort();
     }
-    //[58547068] -> [58547069] -> NULL
-    //  first          last
-    new->val = val; //C - 58547070
-    new->next = NULL;
+
+    new->val = val;
+    new->next = NULL; //102
 
     if (!q->first)
         q->first = q->last = new;
+    //f->102
     else {
-        q->last->next = new; //C - 58547070
-        //[58547068] -> [58547069] -> [58547070] -> NULL
-        //     first      last       last->next
-        //переключились
 
-        //вернулись
-        q->last = q->last->next; //last [58547070]
+        q->last->next = new;
 
-        //переключились
+        q->last = q->last->next;
+
     }
 
     q->count++;
@@ -103,8 +99,6 @@ int queue_add(queue_t *q, int val) {
 }
 
 
-//прочитали 58547068
-//дошли до 58547069
 int queue_get(queue_t *q, int *val) {
     q->get_attempts++;
 
@@ -114,12 +108,13 @@ int queue_get(queue_t *q, int *val) {
         return 0;
 
 
-    qnode_t *tmp = q->first; // tmp = [58547069] tmp->next == [58547070]
-    *val = tmp->val; // val = 58547069 (корректно)
-    q->first = q->first->next; //q->first = [58547070]
-    //first -> [58547070]
+    qnode_t *tmp = q->first;
+    *val = tmp->val;
 
-    free(tmp);//освободили [58547069]
+    q->first = q->first->next;
+
+    free(tmp);
+
     q->count--;
     q->get_count++;
 

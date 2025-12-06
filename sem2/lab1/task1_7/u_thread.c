@@ -94,7 +94,6 @@ int u_thread_create(u_thread_t *u_thread, u_thread_manager_t *u_thread_manager, 
         return -1;
     }
 
-    //вверх стека
     u_thread_t new_u_thread = (u_thread_struct_t *) (stack + STACK_SIZE - sizeof(u_thread_struct_t));
     int err = getcontext(&new_u_thread->u_ctx);
     if (err == -1) {
