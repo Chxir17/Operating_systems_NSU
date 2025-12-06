@@ -4,7 +4,7 @@
 
 #include "u_thread.h"
 
-void thread1(void *arg, u_thread_manager_t *u_thread_manager) {
+void thread1(void *arg, void *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread1[%d]: %s\n", i, str);
@@ -12,7 +12,7 @@ void thread1(void *arg, u_thread_manager_t *u_thread_manager) {
     }
 }
 
-void thread2(void *arg, u_thread_manager_t *u_thread_manager) {
+void thread2(void *arg, void *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread2[%d]: %s\n", i, str);
@@ -20,7 +20,7 @@ void thread2(void *arg, u_thread_manager_t *u_thread_manager) {
     }
 }
 
-void thread3(void *arg, u_thread_manager_t *u_thread_manager) {
+void thread3(void *arg, void *u_thread_manager) {
     char *str = arg;
     for (int i = 0; i < 5; i++) {
         printf("thread3[%d]: %s\n", i, str);

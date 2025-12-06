@@ -31,8 +31,7 @@ typedef struct _u_thread_manager_t {
 } u_thread_manager_t;
 
 void u_thread_usleep(u_thread_manager_t *mgr, long long usec);
-int u_thread_create(u_thread_t *out, u_thread_manager_t *mgr,
-                    void (*func)(void*, void*), void *arg);
+int u_thread_create(u_thread_t *u_thread, u_thread_manager_t *mgr, void (*func)(void*, void*), void *arg);
 void u_thread_scheduler(u_thread_manager_t *mgr);
 int thread_is_finished(u_thread_t u_tid);
 void init_thread(u_thread_t *main_thread, u_thread_manager_t *mgr);

@@ -18,14 +18,18 @@ long long now_us(void) {
 }
 
 void u_thread_usleep(u_thread_manager_t *mgr, long long usec) {
-    if (mgr->u_thread_cur == 0) {
+    u_thread_t cur = mgr->cur;
+
+    if (cur->u_thread_id == 0) {
         u_thread_scheduler(mgr);
         return;
     }
-    u_thread_struct_t *cur = mgr->uthreads[mgr->u_thread_cur];
+
     cur->sleep_until_us = now_us() + usec;
+
     u_thread_scheduler(mgr);
 }
+
 
 void u_thread_scheduler(u_thread_manager_t *mgr)
 {
