@@ -111,7 +111,8 @@ int u_thread_create(u_thread_t *out, u_thread_manager_t *mgr, void (*func)(void*
         return -1;
     }
 
-    u_thread_t thr = (u_thread_t)((char*)stack + STACK_SIZE - sizeof(*thr));
+    u_thread_t thr = malloc(sizeof(u_thread_struct_t));
+    thr->stack_base = stack;
     int err = getcontext(&thr->u_ctx);
     if (err == -1) {
         perror("u_thread_create: getcontext() failed:");
