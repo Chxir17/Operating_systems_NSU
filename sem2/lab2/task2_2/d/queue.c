@@ -30,10 +30,8 @@ queue_t* queue_init(int max_count) {
 	q->last = NULL;
 	q->max_count = max_count;
 	q->count = 0;
-
 	q->add_attempts = q->get_attempts = 0;
 	q->add_count = q->get_count = 0;
-
 	err = pthread_create(&q->qmonitor_tid, NULL, qmonitor, q);
 	if (err) {
 		printf("queue_init: pthread_create() failed: %s\n", strerror(err));
@@ -64,8 +62,9 @@ int queue_add(queue_t *q, int val) {
 
 	assert(q->count <= q->max_count);
 
-	if (q->count == q->max_count)
+	if (q->count == q->max_count) {
 		return 0;
+	}
 
 	qnode_t *new = malloc(sizeof(qnode_t));
 	if (!new) {

@@ -1,5 +1,5 @@
-#ifndef __FITOS_QUEUE_H__
-#define __FITOS_QUEUE_H__
+#ifndef FITOS_QUEUE_H
+#define FITOS_QUEUE_H
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 typedef struct _QueueNode {
 	int val;
@@ -19,6 +20,7 @@ typedef struct _Queue {
 	qnode_t *last;
 
 	pthread_t qmonitor_tid;
+	sem_t sem;
 
 	int count;
 	int max_count;
@@ -36,4 +38,4 @@ int queue_add(queue_t *q, int val);
 int queue_get(queue_t *q, int *val);
 void queue_print_stats(queue_t *q);
 
-#endif		// __FITOS_QUEUE_H__
+#endif
