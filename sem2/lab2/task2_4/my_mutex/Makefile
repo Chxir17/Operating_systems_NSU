@@ -1,20 +1,20 @@
-EXECUTABLES=my_mutex
-SOURCES=./
+EXEC = my_spinlock
+CC = gcc
+CFLAGS = -Wall -pthread
 
-TYPE=.c
-CC=gcc
-RM=rm
-CFLAGS=-Wall
-LIBS=../../task2_1/queue.c my_mutex.c
-LDFLAGS=-o $@
+SRC = main.c my_mutex.c ../../task2_1/queue.c
+OBJ = $(SRC:.c=.o)
 
-all: $(EXECUTABLES)
+all: $(EXEC)
 
-$(EXECUTABLES): %: $(SOURCES)%$(TYPE)
-	$(CC) $(CFLAGS) $(LDFLAGS) $< ${LIBS}
+$(EXEC): $(OBJ)
+	$(CC) $(OBJ) -o $(EXEC)
 
-run: $(EXECUTABLES)
-	./${EXECUTABLES}
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+run: $(EXEC)
+	./$(EXEC)
 
 clean:
-	${RM} -f *.o $(EXECUTABLES)
+	rm -f $(OBJ) $(EXEC)
