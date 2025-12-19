@@ -19,7 +19,6 @@ void my_spinlock_init(my_spinlock_t *lock) {
 void my_spinlock_lock(my_spinlock_t *lock) {
     while (1) {
         int one = 1;
-
         if (atomic_compare_exchange_strong(lock, &one, 0)) {
             break;
         }
