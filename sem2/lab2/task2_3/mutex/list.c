@@ -130,7 +130,7 @@ void *decreasing_thread(void *arg) {
             pthread_mutex_unlock(&prev->sync);
 
             pthread_mutex_lock(&decreasing_mutex);
-            increasing_iterations++;
+            decreasing_iterations++;
             pthread_mutex_unlock(&decreasing_mutex);
             continue;
         }
@@ -163,7 +163,7 @@ void *decreasing_thread(void *arg) {
             pthread_mutex_lock(&current->sync);
         }
         pthread_mutex_lock(&decreasing_mutex);
-        increasing_iterations++;
+        decreasing_iterations++;
         pthread_mutex_unlock(&decreasing_mutex);
     }
     return NULL;
@@ -179,16 +179,14 @@ void *equal_thread(void *arg) {
         Node *current = prev->next;
         if (!current) {
             pthread_mutex_unlock(&prev->sync);
-
             pthread_mutex_lock(&equal_mutex);
-            increasing_iterations++;
+            equals_iterations++;
             pthread_mutex_unlock(&equal_mutex);
             continue;
         }
 
         pthread_mutex_lock(&current->sync);
         int counter = 0;
-
         while (1) {
             Node *next = current->next;
             if (!next) {
@@ -215,7 +213,7 @@ void *equal_thread(void *arg) {
         }
 
         pthread_mutex_lock(&equal_mutex);
-        increasing_iterations++;
+        equals_iterations++;
         pthread_mutex_unlock(&equal_mutex);
     }
     return NULL;
