@@ -23,10 +23,10 @@ void my_mutex_lock(my_mutex_t* m) {
             case MY_MUTEX_ERRORCHECK:
                 errno = EDEADLK;
                 perror("my_mutex_lock (ERRORCHECK)");
-                return; // Не аварийно, просто ошибка
+                return;
             case MY_MUTEX_NORMAL:
                 fprintf(stderr, "my_mutex_lock: deadlock detected (NORMAL mutex)\n");
-                abort(); // Аварийно завершить программу
+                abort();
         }
     }
 
