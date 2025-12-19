@@ -13,7 +13,6 @@ void *qmonitor(void *arg) {
         queue_print_stats(q);
         sleep(1);
     }
-
     return NULL;
 }
 
@@ -68,6 +67,16 @@ void queue_destroy(queue_t *q) {
 }
 
 int queue_add(queue_t *q, int val) {
+
+    qnode_t *new = malloc(sizeof(qnode_t));
+    if (!new) {
+        printf("Cannot allocate memory for new node\n");
+        abort();
+    }
+
+    new->val = val;
+    new->next = NULL;
+
     sem_wait(&q->sem);
     q->add_attempts++;
 
@@ -78,14 +87,7 @@ int queue_add(queue_t *q, int val) {
         return 0;
     }
 
-    qnode_t *new = malloc(sizeof(qnode_t));
-    if (!new) {
-        printf("Cannot allocate memory for new node\n");
-        abort();
-    }
 
-    new->val = val;
-    new->next = NULL;
 
     if (!q->first)
         q->first = q->last = new;
@@ -117,13 +119,11 @@ int queue_get(queue_t *q, int *val) {
 
     *val = tmp->val;
     q->first = q->first->next;
-
-    free(tmp);
     q->count--;
     q->get_count++;
 
     sem_post(&q->sem);
-
+    free(tmp);
     return 1;
 }
 
