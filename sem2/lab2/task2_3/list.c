@@ -26,7 +26,7 @@ static void random_string(char *buf, const long len){
     buf[len] = '\0';
 }
 
-List *list_init(const long n) {
+List *list_init(long n) {
     List *l = malloc(sizeof(List));
     if (!l) {
         printf("Cannot allocate memory for list\n");
