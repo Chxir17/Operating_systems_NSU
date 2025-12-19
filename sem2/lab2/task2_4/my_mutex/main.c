@@ -44,7 +44,9 @@ void *reader(void *arg) {
 	while (1) {
 		int val = -1;
         my_mutex_lock(&lock);
+		my_mutex_lock(&lock);
 		int ok = queue_get(q, &val);
+		my_mutex_unlock(&lock);
 		my_mutex_unlock(&lock);
 		if (!ok)
 			continue;
@@ -86,7 +88,7 @@ int main() {
 	printf("main [%d %d %d]\n", getpid(), getppid(), gettid());
 
 	q = queue_init(100000);
-    my_mutex_init(&lock, MY_MUTEX_NORMAL);
+    my_mutex_init(&lock, MY_MUTEX_RECURSIVE);
 
 	err = pthread_create(&tid_reader, NULL, reader, q);
 	if (err) {
