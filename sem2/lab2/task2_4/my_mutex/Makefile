@@ -5,7 +5,7 @@ TYPE=.c
 CC=gcc
 RM=rm
 CFLAGS=-Wall
-LIBS=../../task2_1/queue.c my_mutex/my_mutex.c
+LIBS=../../task2_1/queue.c my_mutex.c
 LDFLAGS=-o $@
 
 all: $(EXECUTABLES)
