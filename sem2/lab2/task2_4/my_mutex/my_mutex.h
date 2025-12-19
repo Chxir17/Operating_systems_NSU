@@ -35,10 +35,6 @@ typedef struct {
 } my_mutex_t;
 
 
-typedef struct {
-	int lock;
-} my_mutex_t;
-
 void my_mutex_init(my_mutex_t* m, my_mutex_type_t type);
 
 int futex(int* uaddr, int futex_op, int val,
