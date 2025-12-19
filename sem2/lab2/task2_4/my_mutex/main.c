@@ -44,10 +44,10 @@ void *reader(void *arg) {
 	while (1) {
 		int val = -1;
         my_mutex_lock(&lock);
-		my_mutex_lock(&lock);
+		// my_mutex_lock(&lock);
 		int ok = queue_get(q, &val);
 		my_mutex_unlock(&lock);
-		my_mutex_unlock(&lock);
+		// my_mutex_unlock(&lock);
 		if (!ok)
 			continue;
 
