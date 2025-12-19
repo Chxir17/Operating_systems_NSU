@@ -129,9 +129,9 @@ void *decreasing_thread(void *arg) {
         if (!current) {
             pthread_mutex_unlock(&prev->sync);
 
-            pthread_mutex_lock(&increasing_mutex);
+            pthread_mutex_lock(&decreasing_mutex);
             increasing_iterations++;
-            pthread_mutex_unlock(&increasing_mutex);
+            pthread_mutex_unlock(&decreasing_mutex);
             continue;
         }
 
@@ -162,9 +162,9 @@ void *decreasing_thread(void *arg) {
             current = current->next;
             pthread_mutex_lock(&current->sync);
         }
-        pthread_mutex_lock(&increasing_mutex);
+        pthread_mutex_lock(&decreasing_mutex);
         increasing_iterations++;
-        pthread_mutex_unlock(&increasing_mutex);
+        pthread_mutex_unlock(&decreasing_mutex);
     }
     return NULL;
 }
@@ -180,9 +180,9 @@ void *equal_thread(void *arg) {
         if (!current) {
             pthread_mutex_unlock(&prev->sync);
 
-            pthread_mutex_lock(&increasing_mutex);
+            pthread_mutex_lock(&equal_mutex);
             increasing_iterations++;
-            pthread_mutex_unlock(&increasing_mutex);
+            pthread_mutex_unlock(&equal_mutex);
             continue;
         }
 
@@ -214,9 +214,9 @@ void *equal_thread(void *arg) {
             pthread_mutex_lock(&current->sync);
         }
 
-        pthread_mutex_lock(&increasing_mutex);
+        pthread_mutex_lock(&equal_mutex);
         increasing_iterations++;
-        pthread_mutex_unlock(&increasing_mutex);
+        pthread_mutex_unlock(&equal_mutex);
     }
     return NULL;
 }
