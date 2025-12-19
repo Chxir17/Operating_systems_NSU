@@ -297,7 +297,7 @@ void *monitor_thread(void *arg){
             swap[i] = swap_success[i];
             pthread_mutex_unlock(&swap_mutex[i]);
         }
-        printf("ASC=%lld, DESC=%lld, EQ=%lld, SWAP=[%lld, %lld, %lld]\n", increasings, decreasings, equals, swap[0], swap[1], swap[2]);
+        printf("Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n", increasings, decreasings, equals, swap[0], swap[1], swap[2]);
         sleep(1);
     }
     return NULL;
