@@ -103,7 +103,7 @@ void *increasing_thread(void *arg) {
         pthread_rwlock_unlock(&prev->sync);
 
         pthread_rwlock_wrlock(&increasing_lock);
-        increasing_iterations += counter;
+        increasing_iterations++;
         pthread_rwlock_unlock(&increasing_lock);
     }
     return NULL;
@@ -145,7 +145,7 @@ void *decreasing_thread(void *arg) {
         pthread_rwlock_unlock(&prev->sync);
 
         pthread_rwlock_wrlock(&decreasing_lock);
-        decreasing_iterations += counter;
+        decreasing_iterations++;
         pthread_rwlock_unlock(&decreasing_lock);
     }
     return NULL;
@@ -187,7 +187,7 @@ void *equal_thread(void *arg) {
         pthread_rwlock_unlock(&prev->sync);
 
         pthread_rwlock_wrlock(&equal_lock);
-        equals_iterations += counter;
+        equals_iterations++;
         pthread_rwlock_unlock(&equal_lock);
     }
     return NULL;
