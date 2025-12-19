@@ -15,14 +15,18 @@ int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int
 
 void my_mutex_lock(my_mutex_t* m) {
     pid_t tid = get_tid();
-    if (atomic_load(&m->lock) == 0 && m->owner == tid) {
+    if (m->owner == tid) {
         if (m->type == MY_MUTEX_RECURSIVE) {
             m->recursion++;
             return;
         }
         if (m->type == MY_MUTEX_ERRORCHECK) {
             errno = EDEADLK;
-            perror("my_mutex_lock");
+            perror("my_mutex_lock: deadlock detected");
+            return;
+        }
+        if (m->type == MY_MUTEX_NORMAL) {
+            fprintf(stderr, "my_mutex_lock: deadlock on normal mutex\n");
             abort();
         }
     }
