@@ -33,7 +33,6 @@ static void random_string(char *buf, long len) {
 
 List *list_init(long n) {
     srand(time(NULL));
-
     List *l = malloc(sizeof(List));
     l->sentinel = malloc(sizeof(Node));
 
@@ -85,32 +84,26 @@ void *increasing_thread(void *arg) {
         }
 
         pthread_rwlock_rdlock(&current->sync);
+        int counter = 0;
 
-        while (1) {
+        while (current->next) {
             Node *next = current->next;
-            if (!next) {
-                pthread_rwlock_unlock(&current->sync);
-                pthread_rwlock_unlock(&prev->sync);
-                break;
-            }
-
             pthread_rwlock_rdlock(&next->sync);
 
-            int cl = strlen(current->value);
-            int nl = strlen(next->value);
+            if (strlen(current->value) < strlen(next->value)) {
+                counter++;
+            }
 
-            pthread_rwlock_unlock(&next->sync);
             pthread_rwlock_unlock(&prev->sync);
-
             prev = current;
-            current = current->next;
-            pthread_rwlock_rdlock(&current->sync);
-
-            (void)(cl < nl);
+            current = next;
         }
 
+        pthread_rwlock_unlock(&current->sync);
+        pthread_rwlock_unlock(&prev->sync);
+
         pthread_rwlock_wrlock(&increasing_lock);
-        increasing_iterations++;
+        increasing_iterations += counter;
         pthread_rwlock_unlock(&increasing_lock);
     }
     return NULL;
@@ -133,32 +126,26 @@ void *decreasing_thread(void *arg) {
         }
 
         pthread_rwlock_rdlock(&current->sync);
+        int counter = 0;
 
-        while (1) {
+        while (current->next) {
             Node *next = current->next;
-            if (!next) {
-                pthread_rwlock_unlock(&current->sync);
-                pthread_rwlock_unlock(&prev->sync);
-                break;
-            }
-
             pthread_rwlock_rdlock(&next->sync);
 
-            int cl = strlen(current->value);
-            int nl = strlen(next->value);
+            if (strlen(current->value) > strlen(next->value)) {
+                counter++;
+            }
 
-            pthread_rwlock_unlock(&next->sync);
             pthread_rwlock_unlock(&prev->sync);
-
             prev = current;
-            current = current->next;
-            pthread_rwlock_rdlock(&current->sync);
-
-            (void)(cl > nl);
+            current = next;
         }
 
+        pthread_rwlock_unlock(&current->sync);
+        pthread_rwlock_unlock(&prev->sync);
+
         pthread_rwlock_wrlock(&decreasing_lock);
-        decreasing_iterations++;
+        decreasing_iterations += counter;
         pthread_rwlock_unlock(&decreasing_lock);
     }
     return NULL;
@@ -181,32 +168,26 @@ void *equal_thread(void *arg) {
         }
 
         pthread_rwlock_rdlock(&current->sync);
+        int counter = 0;
 
-        while (1) {
+        while (current->next) {
             Node *next = current->next;
-            if (!next) {
-                pthread_rwlock_unlock(&current->sync);
-                pthread_rwlock_unlock(&prev->sync);
-                break;
-            }
-
             pthread_rwlock_rdlock(&next->sync);
 
-            int cl = strlen(current->value);
-            int nl = strlen(next->value);
+            if (strlen(current->value) == strlen(next->value)) {
+                counter++;
+            }
 
-            pthread_rwlock_unlock(&next->sync);
             pthread_rwlock_unlock(&prev->sync);
-
             prev = current;
-            current = current->next;
-            pthread_rwlock_rdlock(&current->sync);
-
-            (void)(cl == nl);
+            current = next;
         }
 
+        pthread_rwlock_unlock(&current->sync);
+        pthread_rwlock_unlock(&prev->sync);
+
         pthread_rwlock_wrlock(&equal_lock);
-        equals_iterations++;
+        equals_iterations += counter;
         pthread_rwlock_unlock(&equal_lock);
     }
     return NULL;
@@ -230,7 +211,6 @@ void *swap_thread(void *arg) {
             }
 
             pthread_rwlock_wrlock(&current->sync);
-
             Node *next = current->next;
             if (!next) {
                 pthread_rwlock_unlock(&current->sync);
