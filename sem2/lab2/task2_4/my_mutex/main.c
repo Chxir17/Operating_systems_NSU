@@ -88,7 +88,7 @@ int main() {
 	printf("main [%d %d %d]\n", getpid(), getppid(), gettid());
 
 	q = queue_init(100000);
-    my_mutex_init(&lock, MY_MUTEX_ERRORCHECK);
+    my_mutex_init(&lock, MY_MUTEX_NORMAL);
 
 	err = pthread_create(&tid_reader, NULL, reader, q);
 	if (err) {
