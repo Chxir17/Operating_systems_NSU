@@ -1,4 +1,4 @@
-EXEC = my_spinlock
+EXEC = my_mutex
 CC = gcc
 CFLAGS = -Wall -pthread
 
