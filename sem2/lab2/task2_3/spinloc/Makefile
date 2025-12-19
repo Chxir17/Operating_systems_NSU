@@ -9,7 +9,7 @@ INCLUDE_DIR="."
 
 all: ${TARGET_1}
 
-${TARGET_1}: spinloc/list.h ${SRCS_1}
+${TARGET_1}: list.h ${SRCS_1}
 	${CC} ${CFLAGS} -I${INCLUDE_DIR} ${SRCS_1} ${LIBS} -o ${TARGET_1}
 
 clean:
