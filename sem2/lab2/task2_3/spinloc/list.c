@@ -116,17 +116,15 @@ void *increasing_thread(void *arg) {
         pthread_spin_lock(&current->sync);
         int counter = 0;
         while (1) {
-            Node *next = current->next;
-            if (!next) {
+            if (!current->next) {
                 pthread_spin_unlock(&current->sync);
                 pthread_spin_unlock(&prev->sync);
                 break;
             }
-            pthread_spin_lock(&next->sync);
-
+            pthread_spin_lock(&current->next->sync);
+            Node *next = current->next;
             const int  current_length = strlen(current->value);
             const int next_length = strlen(next->value);
-
             pthread_spin_unlock(&next->sync);
             pthread_spin_unlock(&prev->sync);
             if (current_length < next_length) {
@@ -152,64 +150,64 @@ void *decreasing_thread(void *arg) {
         Node *current = prev->next;
         if (!current) {
             pthread_spin_unlock(&prev->sync);
-            pthread_mutex_lock(&decreasing_mutex);
-            decreasing_iterations++;
-            pthread_mutex_unlock(&decreasing_mutex);
+            pthread_mutex_lock(&increasing_mutex);
+            increasing_iterations++;
+            pthread_mutex_unlock(&increasing_mutex);
             continue;
         }
         pthread_spin_lock(&current->sync);
         int counter = 0;
         while (1) {
-            Node *next = current->next;
-            if (!next){
+            if (!current->next) {
                 pthread_spin_unlock(&current->sync);
                 pthread_spin_unlock(&prev->sync);
                 break;
             }
-            pthread_spin_lock(&next->sync);
-            const int current_length = strlen(current->value);
+            pthread_spin_lock(&current->next->sync);
+            Node *next = current->next;
+            const int  current_length = strlen(current->value);
             const int next_length = strlen(next->value);
             pthread_spin_unlock(&next->sync);
             pthread_spin_unlock(&prev->sync);
-            if (current_length > next_length){
+            if (current_length > next_length) {
                 counter++;
             }
+
             prev = current;
             current = current->next;
             pthread_spin_lock(&current->sync);
         }
-        pthread_mutex_lock(&decreasing_mutex);
-        decreasing_iterations++;
-        pthread_mutex_unlock(&decreasing_mutex);
+        pthread_mutex_lock(&increasing_mutex);
+        increasing_iterations++;
+        pthread_mutex_unlock(&increasing_mutex);
     }
     return NULL;
 }
 
 void *equal_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
-    while (!stop_flag){
+    while (!stop_flag) {
         Node *prev = l->sentinel;
         pthread_spin_lock(&prev->sync);
         Node *current = prev->next;
-        if (!current){
+        if (!current) {
             pthread_spin_unlock(&prev->sync);
-            pthread_mutex_lock(&equal_mutex);
-            equals_iterations++;
-            pthread_mutex_unlock(&equal_mutex);
+            pthread_mutex_lock(&increasing_mutex);
+            increasing_iterations++;
+            pthread_mutex_unlock(&increasing_mutex);
             continue;
         }
         pthread_spin_lock(&current->sync);
         int counter = 0;
-        while (1)
-        {
-            Node *next = current->next;
-            if (!next){
+        while (1) {
+            if (!current->next) {
                 pthread_spin_unlock(&current->sync);
                 pthread_spin_unlock(&prev->sync);
                 break;
             }
-            pthread_spin_lock(&next->sync);
-            const int current_length = strlen(current->value);
+            pthread_spin_lock(&current->next->sync);
+            Node *next = current->next;
+            const int  current_length = strlen(current->value);
             const int next_length = strlen(next->value);
             pthread_spin_unlock(&next->sync);
             pthread_spin_unlock(&prev->sync);
@@ -221,9 +219,9 @@ void *equal_thread(void *arg) {
             current = current->next;
             pthread_spin_lock(&current->sync);
         }
-        pthread_mutex_lock(&equal_mutex);
-        equals_iterations++;
-        pthread_mutex_unlock(&equal_mutex);
+        pthread_mutex_lock(&increasing_mutex);
+        increasing_iterations++;
+        pthread_mutex_unlock(&increasing_mutex);
     }
     return NULL;
 }

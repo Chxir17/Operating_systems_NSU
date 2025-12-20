@@ -19,8 +19,8 @@ int main() {
     struct ThreadArg targ1 = {l, 0};
     struct ThreadArg targ2 = {l, 1};
     struct ThreadArg targ3 = {l, 2};
-    err1 =pthread_create(&t_swap1, NULL, swap_thread, &targ1);
-    err2 =pthread_create(&t_swap2, NULL, swap_thread, &targ2);
+    err1 = pthread_create(&t_swap1, NULL, swap_thread, &targ1);
+    err2 = pthread_create(&t_swap2, NULL, swap_thread, &targ2);
     err3 = pthread_create(&t_swap3, NULL, swap_thread, &targ3);
     if (err1 || err2 || err3) {
         perror("Error creating thread");
@@ -33,6 +33,7 @@ int main() {
         return -1;
     }
     sleep(15);
+
 
     atomic_store(&stop_flag, 1);
     err1 = pthread_join(t_increasing, NULL);
