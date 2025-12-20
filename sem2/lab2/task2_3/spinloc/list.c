@@ -220,7 +220,7 @@ void *equal_thread(void *arg) {
             pthread_spin_lock(&current->sync);
         }
         pthread_mutex_lock(&equal_mutex);
-        increasing_iterations++;
+        equals_iterations++;
         pthread_mutex_unlock(&equal_mutex);
     }
     return NULL;
