@@ -19,7 +19,7 @@ typedef struct Node {
 
 typedef struct List {
     Node *start;
-    const long long length;
+    long long length;
 } List;
 
 struct ThreadArg {
