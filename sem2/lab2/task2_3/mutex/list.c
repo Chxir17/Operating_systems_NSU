@@ -279,7 +279,7 @@ void *swap_thread(void *arg){
                 break;
             }
 
-            if ((rand() & 255) == 0) {
+            if ((rand() % 25) == 0) {
                 pthread_mutex_lock(&next->sync);
 
                 if (prev->next == current && current->next == next) {

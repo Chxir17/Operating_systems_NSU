@@ -251,7 +251,7 @@ void *swap_thread(void *arg){
                 break;
             }
 
-            if ((rand() & 255) == 0){
+            if ((rand() % 25) == 0) {
                 pthread_spin_lock(&next->sync);
                 if (prev->next == current && current->next == next) {
                     Node *next_next = next->next;

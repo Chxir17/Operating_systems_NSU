@@ -255,7 +255,7 @@ void *swap_thread(void *arg) {
                 break;
             }
 
-            if ((rand() & 255) == 0) {
+            if ((rand() % 25) == 0) {
                 pthread_rwlock_wrlock(&next->sync);
 
                 if (prev->next == current && current->next == next) {
@@ -286,27 +286,27 @@ void *swap_thread(void *arg) {
 void *monitor_thread(void *arg) {
     while (!stop_flag) {
         pthread_rwlock_rdlock(&increasing_lock);
-        long long inc = increasing_iterations;
+        long long increasings = increasing_iterations;
         pthread_rwlock_unlock(&increasing_lock);
 
         pthread_rwlock_rdlock(&decreasing_lock);
-        long long dec = decreasing_iterations;
+        long long decreasings = decreasing_iterations;
         pthread_rwlock_unlock(&decreasing_lock);
 
         pthread_rwlock_rdlock(&equal_lock);
-        long long eq = equals_iterations;
+        long long equals = equals_iterations;
         pthread_rwlock_unlock(&equal_lock);
 
-        long long sw[3];
+        long long swap[3];
         for (int i = 0; i < 3; i++) {
             pthread_rwlock_rdlock(&swap_lock[i]);
-            sw[i] = swap_success[i];
+            swap[i] = swap_success[i];
             pthread_rwlock_unlock(&swap_lock[i]);
         }
 
         printf(
             "Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n",
-            inc, dec, eq, sw[0], sw[1], sw[2]
+            increasings, decreasings, equals, swap[0] , swap[1] , swap[2]
         );
         sleep(1);
     }
