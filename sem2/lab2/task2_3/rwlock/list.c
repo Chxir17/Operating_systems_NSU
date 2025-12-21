@@ -4,7 +4,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <stdatomic.h>
 
 long long increasing_iterations = 0;
@@ -17,47 +16,71 @@ atomic_int stop_flag = 0;
 pthread_rwlock_t increasing_lock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_rwlock_t decreasing_lock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_rwlock_t equal_lock = PTHREAD_RWLOCK_INITIALIZER;
-pthread_rwlock_t swap_lock[3] = {
-    PTHREAD_RWLOCK_INITIALIZER,
-    PTHREAD_RWLOCK_INITIALIZER,
-    PTHREAD_RWLOCK_INITIALIZER
-};
+pthread_rwlock_t swap_lock[3] = {PTHREAD_RWLOCK_INITIALIZER, PTHREAD_RWLOCK_INITIALIZER, PTHREAD_RWLOCK_INITIALIZER};
 
-static void random_string(char *buf, long len) {
-    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
-    for (long i = 0; i < len; i++) {
+void random_string(char *buf, const int len) {
+    const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
+    for (int i = 0; i < len; i++) {
         buf[i] = alphabet[rand() % (sizeof(alphabet) - 1)];
     }
     buf[len] = '\0';
 }
 
-List *list_init(long n) {
-    srand(time(NULL));
+List *list_init(const long long n) {
     List *l = malloc(sizeof(List));
-    l->sentinel = malloc(sizeof(Node));
+    if (!l) {
+        printf("Cannot allocate memory for list\n");
+        abort();
+    }
 
-    pthread_rwlock_init(&l->sentinel->sync, NULL);
-    l->sentinel->value[0] = '\0';
-    l->sentinel->next = NULL;
+    l->start = malloc(sizeof(Node));
+    if (!l->start) {
+        free(l);
+        printf("Cannot allocate memory for list->start\n");
+        abort();
+    }
+
+    pthread_rwlock_init(&l->start->sync, NULL);
+    l->start->value[0] = '\0';
+    l->start->next = NULL;
     l->length = n;
 
-    Node *prev = l->sentinel;
-    for (long i = 0; i < n; i++) {
+    Node *prev = l->start;
+
+    for (long long i = 0; i < n; i++) {
         Node *node = malloc(sizeof(Node));
-        pthread_rwlock_init(&node->sync, NULL);
+        if (!node) {
+            Node *cur = l->start;
+            while (cur) {
+                Node *next = cur->next;
+                pthread_rwlock_destroy(&cur->sync);
+                free(cur);
+                cur = next;
+            }
+            free(l);
+            printf("Cannot allocate memory for node\n");
+            abort();
+        }
 
-        long len = 1 + rand() % (MAX_STR - 1);
+        srand(time(NULL) ^ i);
+        int len = 1 + rand() % (MAX_STR - 1);
         random_string(node->value, len);
-
         node->next = NULL;
+
+        pthread_rwlock_init(&node->sync, NULL);
         prev->next = node;
         prev = node;
     }
+
     return l;
 }
 
 void list_destroy(List *l) {
-    Node *cur = l->sentinel;
+    if (!l){
+        return;
+    }
+
+    Node *cur = l->start;
     while (cur) {
         Node *next = cur->next;
         pthread_rwlock_destroy(&cur->sync);
@@ -71,7 +94,7 @@ void *increasing_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_rwlock_rdlock(&prev->sync);
 
         Node *current = prev->next;
@@ -87,14 +110,20 @@ void *increasing_thread(void *arg) {
         int counter = 0;
 
         while (current->next) {
+            pthread_rwlock_unlock(&prev->sync);
+
             Node *next = current->next;
             pthread_rwlock_rdlock(&next->sync);
 
-            if (strlen(current->value) < strlen(next->value)) {
+            int cur_len = strlen(current->value);
+            int next_len = strlen(next->value);
+
+            if (cur_len < next_len){
                 counter++;
             }
-
-            pthread_rwlock_unlock(&prev->sync);
+            else{
+                counter = 0;
+            }
             prev = current;
             current = next;
         }
@@ -113,7 +142,7 @@ void *decreasing_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_rwlock_rdlock(&prev->sync);
 
         Node *current = prev->next;
@@ -127,16 +156,18 @@ void *decreasing_thread(void *arg) {
 
         pthread_rwlock_rdlock(&current->sync);
         int counter = 0;
-
         while (current->next) {
+            pthread_rwlock_unlock(&prev->sync);
             Node *next = current->next;
             pthread_rwlock_rdlock(&next->sync);
-
-            if (strlen(current->value) > strlen(next->value)) {
+            int cur_len = strlen(current->value);
+            int next_len = strlen(next->value);
+            if (cur_len > next_len){
                 counter++;
             }
-
-            pthread_rwlock_unlock(&prev->sync);
+            else {
+                counter = 0;
+            }
             prev = current;
             current = next;
         }
@@ -155,7 +186,7 @@ void *equal_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_rwlock_rdlock(&prev->sync);
 
         Node *current = prev->next;
@@ -171,14 +202,21 @@ void *equal_thread(void *arg) {
         int counter = 0;
 
         while (current->next) {
+            pthread_rwlock_unlock(&prev->sync);
+
             Node *next = current->next;
             pthread_rwlock_rdlock(&next->sync);
 
-            if (strlen(current->value) == strlen(next->value)) {
+            int cur_len = strlen(current->value);
+            int next_len = strlen(next->value);
+
+            if (cur_len == next_len) {
                 counter++;
             }
+            else {
+                counter = 0;
+            }
 
-            pthread_rwlock_unlock(&prev->sync);
             prev = current;
             current = next;
         }
@@ -199,11 +237,9 @@ void *swap_thread(void *arg) {
     int tid = targ->thread_id;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
-
+        Node *prev = l->start;
         while (!stop_flag) {
             pthread_rwlock_wrlock(&prev->sync);
-
             Node *current = prev->next;
             if (!current) {
                 pthread_rwlock_unlock(&prev->sync);
@@ -212,6 +248,7 @@ void *swap_thread(void *arg) {
 
             pthread_rwlock_wrlock(&current->sync);
             Node *next = current->next;
+
             if (!next) {
                 pthread_rwlock_unlock(&current->sync);
                 pthread_rwlock_unlock(&prev->sync);
@@ -235,8 +272,7 @@ void *swap_thread(void *arg) {
                 pthread_rwlock_unlock(&current->sync);
                 pthread_rwlock_unlock(&prev->sync);
                 prev = prev->next;
-                if (!prev)
-                    break;
+                if (!prev) break;
             }
         }
 
@@ -268,8 +304,10 @@ void *monitor_thread(void *arg) {
             pthread_rwlock_unlock(&swap_lock[i]);
         }
 
-        printf("Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n",
-               inc, dec, eq, sw[0], sw[1], sw[2]);
+        printf(
+            "Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n",
+            inc, dec, eq, sw[0], sw[1], sw[2]
+        );
         sleep(1);
     }
     return NULL;
