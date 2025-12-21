@@ -40,6 +40,6 @@ extern long long increasing_iterations;
 extern long long decreasing_iterations;
 extern long long equals_iterations;
 extern long long swap_success[3];
-atomic_int stop_flag;
+extern atomic_int stop_flag;
 
 #endif //OS_LIST_H
