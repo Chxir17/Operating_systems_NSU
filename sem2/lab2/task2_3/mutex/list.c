@@ -4,12 +4,12 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdatomic.h>
 
 long long increasing_iterations = 0;
 long long decreasing_iterations = 0;
 long long equals_iterations = 0;
 long long swap_success[3] = {0, 0, 0};
-
 atomic_int stop_flag = 0;
 
 pthread_mutex_t increasing_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -21,42 +21,88 @@ pthread_mutex_t swap_mutex[3] = {
     PTHREAD_MUTEX_INITIALIZER
 };
 
-static void random_string(char *buf, long len) {
-    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
-    for (long i = 0; i < len; i++) {
+void random_string(char *buf, const int len){
+    const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
+    for (int i = 0; i < len; i++) {
         buf[i] = alphabet[rand() % (sizeof(alphabet) - 1)];
     }
     buf[len] = '\0';
 }
 
-List *list_init(long n) {
-    srand(time(NULL));
-
+List *list_init(const long long n) {
     List *l = malloc(sizeof(List));
-    l->sentinel = malloc(sizeof(Node));
+    if (!l) {
+        printf("Cannot allocate memory for list\n");
+        abort();
+    }
 
-    pthread_mutex_init(&l->sentinel->sync, NULL);
-    l->sentinel->value[0] = '\0';
-    l->sentinel->next = NULL;
+    l->start = malloc(sizeof(Node));
+    if (!l->start) {
+        free(l);
+        printf("Cannot allocate memory for list->start\n");
+        abort();
+    }
+
+    if (pthread_mutex_init(&l->start->sync, NULL) != 0) {
+        free(l->start);
+        free(l);
+        printf("Cannot init mutex\n");
+        abort();
+    }
+
+    l->start->value[0] = '\0';
+    l->start->next = NULL;
     l->length = n;
 
-    Node *prev = l->sentinel;
-    for (long i = 0; i < n; i++) {
+    Node *prev = l->start;
+
+    for (long long i = 0; i < n; i++) {
         Node *node = malloc(sizeof(Node));
-        pthread_mutex_init(&node->sync, NULL);
+        if (!node) {
+            Node *cur = l->start;
+            while (cur) {
+                Node *next = cur->next;
+                pthread_mutex_destroy(&cur->sync);
+                free(cur);
+                cur = next;
+            }
+            free(l);
+            printf("Cannot allocate memory for node\n");
+            abort();
+        }
 
-        long len = 1 + rand() % (MAX_STR - 1);
+        srand(time(NULL));
+        const int len = 1 + rand() % (MAX_STR - 1);
         random_string(node->value, len);
-
         node->next = NULL;
+
+        if (pthread_mutex_init(&node->sync, NULL) != 0) {
+            free(node);
+            Node *cur = l->start;
+            while (cur) {
+                Node *next = cur->next;
+                pthread_mutex_destroy(&cur->sync);
+                free(cur);
+                cur = next;
+            }
+            free(l);
+            printf("Cannot init mutex for node\n");
+            abort();
+        }
+
         prev->next = node;
         prev = node;
     }
+
     return l;
 }
 
 void list_destroy(List *l) {
-    Node *cur = l->sentinel;
+    if (!l) {
+        return;
+    }
+
+    Node *cur = l->start;
     while (cur) {
         Node *next = cur->next;
         pthread_mutex_destroy(&cur->sync);
@@ -70,13 +116,12 @@ void *increasing_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_mutex_lock(&prev->sync);
 
         Node *current = prev->next;
         if (!current) {
             pthread_mutex_unlock(&prev->sync);
-
             pthread_mutex_lock(&increasing_mutex);
             increasing_iterations++;
             pthread_mutex_unlock(&increasing_mutex);
@@ -86,30 +131,26 @@ void *increasing_thread(void *arg) {
         pthread_mutex_lock(&current->sync);
         int counter = 0;
 
-        while (1) {
+        while (current->next) {
+            pthread_mutex_unlock(&prev->sync);
             Node *next = current->next;
-            if (!next) {
-                pthread_mutex_unlock(&current->sync);
-                pthread_mutex_unlock(&prev->sync);
-                break;
-            }
-
             pthread_mutex_lock(&next->sync);
 
             const int current_length = strlen(current->value);
             const int next_length = strlen(next->value);
 
-            pthread_mutex_unlock(&next->sync);
-            pthread_mutex_unlock(&prev->sync);
-
             if (current_length < next_length) {
                 counter++;
+            } else {
+                counter = 0;
             }
 
             prev = current;
             current = current->next;
-            pthread_mutex_lock(&current->sync);
         }
+
+        pthread_mutex_unlock(&current->sync);
+        pthread_mutex_unlock(&prev->sync);
 
         pthread_mutex_lock(&increasing_mutex);
         increasing_iterations++;
@@ -122,13 +163,12 @@ void *decreasing_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_mutex_lock(&prev->sync);
 
         Node *current = prev->next;
         if (!current) {
             pthread_mutex_unlock(&prev->sync);
-
             pthread_mutex_lock(&decreasing_mutex);
             decreasing_iterations++;
             pthread_mutex_unlock(&decreasing_mutex);
@@ -138,30 +178,27 @@ void *decreasing_thread(void *arg) {
         pthread_mutex_lock(&current->sync);
         int counter = 0;
 
-        while (1) {
+        while (current->next) {
+            pthread_mutex_unlock(&prev->sync);
             Node *next = current->next;
-            if (!next) {
-                pthread_mutex_unlock(&current->sync);
-                pthread_mutex_unlock(&prev->sync);
-                break;
-            }
-
             pthread_mutex_lock(&next->sync);
 
             const int current_length = strlen(current->value);
             const int next_length = strlen(next->value);
 
-            pthread_mutex_unlock(&next->sync);
-            pthread_mutex_unlock(&prev->sync);
-
             if (current_length > next_length) {
                 counter++;
+            } else {
+                counter = 0;
             }
 
             prev = current;
             current = current->next;
-            pthread_mutex_lock(&current->sync);
         }
+
+        pthread_mutex_unlock(&current->sync);
+        pthread_mutex_unlock(&prev->sync);
+
         pthread_mutex_lock(&decreasing_mutex);
         decreasing_iterations++;
         pthread_mutex_unlock(&decreasing_mutex);
@@ -173,7 +210,7 @@ void *equal_thread(void *arg) {
     List *l = ((struct ThreadArg *)arg)->l;
 
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
         pthread_mutex_lock(&prev->sync);
 
         Node *current = prev->next;
@@ -187,30 +224,27 @@ void *equal_thread(void *arg) {
 
         pthread_mutex_lock(&current->sync);
         int counter = 0;
-        while (1) {
-            Node *next = current->next;
-            if (!next) {
-                pthread_mutex_unlock(&current->sync);
-                pthread_mutex_unlock(&prev->sync);
-                break;
-            }
 
+        while (current->next) {
+            pthread_mutex_unlock(&prev->sync);
+            Node *next = current->next;
             pthread_mutex_lock(&next->sync);
 
             const int current_length = strlen(current->value);
             const int next_length = strlen(next->value);
 
-            pthread_mutex_unlock(&next->sync);
-            pthread_mutex_unlock(&prev->sync);
-
             if (current_length == next_length) {
                 counter++;
+            } else {
+                counter = 0;
             }
 
             prev = current;
             current = current->next;
-            pthread_mutex_lock(&current->sync);
         }
+
+        pthread_mutex_unlock(&current->sync);
+        pthread_mutex_unlock(&prev->sync);
 
         pthread_mutex_lock(&equal_mutex);
         equals_iterations++;
@@ -219,25 +253,26 @@ void *equal_thread(void *arg) {
     return NULL;
 }
 
-void *swap_thread(void *arg) {
+void *swap_thread(void *arg){
     struct ThreadArg *targ = arg;
     List *l = targ->l;
     int tid = targ->thread_id;
+
     while (!stop_flag) {
-        Node *prev = l->sentinel;
+        Node *prev = l->start;
 
         while (!stop_flag) {
             pthread_mutex_lock(&prev->sync);
-
             Node *current = prev->next;
+
             if (!current) {
                 pthread_mutex_unlock(&prev->sync);
                 break;
             }
 
             pthread_mutex_lock(&current->sync);
-
             Node *next = current->next;
+
             if (!next) {
                 pthread_mutex_unlock(&current->sync);
                 pthread_mutex_unlock(&prev->sync);
@@ -274,8 +309,8 @@ void *swap_thread(void *arg) {
     return NULL;
 }
 
-void *monitor_thread(void *arg) {
-    while (!stop_flag) {
+void *monitor_thread(void *arg){
+    while (!stop_flag){
         pthread_mutex_lock(&increasing_mutex);
         const long long increasings = increasing_iterations;
         pthread_mutex_unlock(&increasing_mutex);
@@ -295,7 +330,12 @@ void *monitor_thread(void *arg) {
             pthread_mutex_unlock(&swap_mutex[i]);
         }
 
-        printf("Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n", increasings, decreasings, equals,swap[0], swap[1], swap[2]);
+        printf(
+            "Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n",
+            increasings, decreasings, equals,
+            swap[0], swap[1], swap[2]
+        );
+
         sleep(1);
     }
     return NULL;
