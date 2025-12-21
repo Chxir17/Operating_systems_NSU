@@ -36,10 +36,10 @@ void* equal_thread(void* arg);
 void* swap_thread(void* arg);
 void *monitor_thread(void *arg);
 
-long long increasing_iterations;
-long long decreasing_iterations;
-long long equals_iterations;
-long long swap_success[3];
+extern long long increasing_iterations;
+extern long long decreasing_iterations;
+extern long long equals_iterations;
+extern long long swap_success[3];
 atomic_int stop_flag;
 
 #endif //OS_LIST_H
