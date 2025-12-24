@@ -17,7 +17,7 @@
 #include <sys/syscall.h>
 
 
-static inline pid_t get_tid(void) {
+static pid_t get_tid(void) {
 	return (pid_t)syscall(SYS_gettid);
 }
 
@@ -37,8 +37,7 @@ typedef struct {
 
 void my_mutex_init(my_mutex_t* m, my_mutex_type_t type);
 
-int futex(int* uaddr, int futex_op, int val,
-	const struct timespec* timeout, int* uaddr2, int val3);
+int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2, int val3);
 
 void my_mutex_lock(my_mutex_t* m);
 
