@@ -29,155 +29,114 @@ void *client_handler(void *args) {
     Map *cache = thread_args->cache;
     sem_t *sem = thread_args->sem;
 
-    Cache* cache_node = NULL;
-    List* cachedResponse = NULL;
+    Cache *cache_node = NULL;
+    List *cachedResponse = NULL;
 
     Request *request = read_header(client_socket);
-
-    if (request == NULL) {
-        printf("Failed to parse the header\n");
-
+    if (!request || !request->search_path) {
         close(client_socket);
         return NULL;
     }
-    if (request->search_path == NULL) {
-        close(client_socket);
 
-        return NULL;
-    }
     printf("URL: %s\n", request->search_path);
-
     pthread_mutex_lock(&cache->mutex);
     cache_node = map_find_by_url(cache, request->search_path);
 
-    int data = 0;
-    if (cache_node == NULL) {
-        int buffer_size = BUFFER_SIZE;
-        // В кеше не нашлось данных
-        printf("There is not in cache\n");
-        int target_socket = http_connect(request);
-        if (target_socket == -1) {
-            printf("Failed to connect to host\n");
-
-            request_destroy(request);
-            close(client_socket);
-            pthread_mutex_unlock(&cache->mutex);
-
-            return NULL;
-        }
-        if (request_send(target_socket, request) == -1) {
-
-            request_destroy(request);
-            close(client_socket);
-            pthread_mutex_unlock(&cache->mutex);
-
-            return NULL;
-        }
-
-        printf("Start to retrieve the response header\n");
-        cache_node = map_add(cache, request->search_path);
-
+    if (cache_node) {
         cachedResponse = cache_node->response;
-        long buffer_length;
-        Node* current = NULL;
-        Node* prev = NULL;
-        //int cont_lenght_size = strlen("Content-Length: ");
-        while (1) {
-            buffer_length = 0;
-            char *buffer = read_line(target_socket, &buffer_length);
-            //printf("STRLEN() = %d\n", line_length);
-            data++;
-            //  printf("line: %s\n", line);
-            current = list_add(cachedResponse, buffer, buffer_length);
-            //printf("storage_add: %s\n", current->value);
-
-
-            int err = send_to_client(client_socket, buffer, 0, buffer_length);
-            if (err == -1) {
-                printf("Send to client headers end with ERROR\n");
-                free(buffer);
-                pthread_mutex_unlock(&cache->mutex);
-
-                return NULL;
-            }
-
-            if (strstr(buffer, "Content-Length: ")) {
-                long content_length = atoll(buffer + strlen("Content-Length: "));
-                buffer_size = (content_length < BUFFER_SIZE) ? content_length : BUFFER_SIZE;
-            }
-
-            if (buffer[0] == '\r' && buffer[1] == '\n') {
-                printf("get the end of the HTTP response header\n");
-                free(buffer);
-                break;
-            }
-            free(buffer);
-        }
-        pthread_mutex_unlock(&cache->mutex);  // разблокировали хедеры
-
-        pthread_rwlock_wrlock(&current->sync);
-        printf("Start to send BODY with buffer %d bytes in package\n", buffer_size);
-        while (1) {
-            prev = current;
-            long body_length;
-            char *body = read_body(target_socket, &body_length, buffer_size);
-            if (body == NULL) {
-                break;
-            }
-            int err = send_to_client(client_socket, body, 0, body_length);
-            if (err == -1) {
-                printf("Send to client body ended with ERROR\n");
-                free(body);
-
-                pthread_rwlock_unlock(&prev->sync);
-                return NULL;
-            }
-            data++;
-            current = list_add(cachedResponse, body, body_length);
-            pthread_rwlock_wrlock(&current->sync);
-            pthread_rwlock_unlock(&prev->sync);
-            free(body);
-            //sleep(2);
-        }
-        pthread_rwlock_unlock(&prev->sync);
-
-        printf("Send to client body was success\n");
-
-        close(target_socket);
-    } else {
         pthread_mutex_unlock(&cache->mutex);
-        // Нашли в кеше
         printf("Found in cache, start to send it\n");
-        cachedResponse = cache_node->response;
 
-        Node* current = cachedResponse->first;
-        data = 0;
-        while (current != NULL) {
+        Node *current = cachedResponse->first;
+        while (current) {
             pthread_rwlock_rdlock(&current->sync);
-            data++;
-            int err = send_to_client(client_socket, current->value, 0, current->size);
-            if (err == -1) {
-                printf("Send to client body ended with ERROR\n");
+            if (send_to_client(client_socket,current->value,0, current->size) == -1) {
                 pthread_rwlock_unlock(&current->sync);
-                return NULL;
+                goto cleanup;
             }
-            //printf("from cache: %s\n", current->value);
-            //sleep(1);
 
             pthread_rwlock_unlock(&current->sync);
             current = current->next;
         }
 
-        printf("Send to client data from cache success\n");
+        printf("Send from cache success\n");
+        goto cleanup;
+    }
+    printf("Not in cache, create cache node\n");
+    cache_node = map_add(cache, request->search_path);
+    cachedResponse = cache_node->response;
+    pthread_mutex_unlock(&cache->mutex);
+    int target_socket = http_connect(request);
+    if (target_socket == -1) {
+        goto cleanup;
     }
 
-    sem_post(sem);
+    if (request_send(target_socket, request) == -1) {
+        close(target_socket);
+        goto cleanup;
+    }
+    long buffer_length;
+    int buffer_size = BUFFER_SIZE;
+    Node *current = NULL;
+    Node *prev = NULL;
 
-    //printf("K = %d\n", k);
+    while (1) {
+        char *buffer = read_line(target_socket, &buffer_length);
+        if (!buffer) break;
+
+        current = list_add(cachedResponse, buffer, buffer_length);
+
+        if (send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
+            free(buffer);
+            goto cleanup;
+        }
+
+        if (strstr(buffer, "Content-Length: ")) {
+            long cl = atoll(buffer + strlen("Content-Length: "));
+            buffer_size = (cl < BUFFER_SIZE) ? cl : BUFFER_SIZE;
+        }
+
+        if (buffer[0] == '\r' && buffer[1] == '\n') {
+            free(buffer);
+            break;
+        }
+
+        free(buffer);
+    }
+    pthread_rwlock_wrlock(&current->sync);
+
+    while (1) {
+        long body_length;
+        char *body = read_body(target_socket, &body_length, buffer_size);
+        if (!body) break;
+
+        if (send_to_client(client_socket, body, 0, body_length) == -1) {
+            free(body);
+            pthread_rwlock_unlock(&current->sync);
+            goto cleanup;
+        }
+
+        prev = current;
+        current = list_add(cachedResponse, body, body_length);
+
+        pthread_rwlock_wrlock(&current->sync);
+        pthread_rwlock_unlock(&prev->sync);
+
+        free(body);
+    }
+
+    pthread_rwlock_unlock(&current->sync);
+    close(target_socket);
+
+    printf("Send & cache body success\n");
+
+cleanup:
+    sem_post(sem);
     request_destroy(request);
     close(client_socket);
     return NULL;
 }
+
 
 void *start_proxy_server(void *arg) {
     int server_socket;
