@@ -263,6 +263,10 @@ void *swap_thread(void *arg) {
                     prev->next = next;
                     current->next = nn;
                     next->next = current;
+
+                    pthread_rwlock_wrlock(&swap_lock[tid]);
+                    swap_success[tid]++;
+                    pthread_rwlock_unlock(&swap_lock[tid]);
                 }
 
                 pthread_rwlock_unlock(&next->sync);
@@ -275,10 +279,6 @@ void *swap_thread(void *arg) {
                 if (!prev) break;
             }
         }
-
-        pthread_rwlock_wrlock(&swap_lock[tid]);
-        swap_success[tid]++;
-        pthread_rwlock_unlock(&swap_lock[tid]);
     }
     return NULL;
 }

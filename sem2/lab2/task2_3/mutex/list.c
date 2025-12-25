@@ -287,6 +287,9 @@ void *swap_thread(void *arg){
                     prev->next = next;
                     current->next = next_next;
                     next->next = current;
+                    pthread_mutex_lock(&swap_mutex[tid]);
+                    swap_success[tid]++;
+                    pthread_mutex_unlock(&swap_mutex[tid]);
                 }
 
                 pthread_mutex_unlock(&next->sync);
@@ -301,10 +304,6 @@ void *swap_thread(void *arg){
                 }
             }
         }
-
-        pthread_mutex_lock(&swap_mutex[tid]);
-        swap_success[tid]++;
-        pthread_mutex_unlock(&swap_mutex[tid]);
     }
     return NULL;
 }

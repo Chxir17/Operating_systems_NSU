@@ -62,7 +62,7 @@ List *list_init(const long long n) {
             printf("Cannot allocate memory for node\n");
             abort();
         }
-        srand(time(NULL));
+        srand(1);
         const int len = 1 + rand() % (MAX_STR - 1);
         random_string(node->value, len);
         node->next = NULL;
@@ -125,9 +125,6 @@ void *increasing_thread(void *arg) {
             const int next_length = strlen(next->value);
             if (current_length < next_length) {
                 counter++;
-            }
-            else {
-                counter = 0;
             }
             prev = current;
             current = current->next;
@@ -250,14 +247,18 @@ void *swap_thread(void *arg){
                 pthread_spin_unlock(&prev->sync);
                 break;
             }
+            pthread_spin_lock(&next->sync);
 
             if ((rand() % 25) == 0) {
-                pthread_spin_lock(&next->sync);
+
                 if (prev->next == current && current->next == next) {
                     Node *next_next = next->next;
                     prev->next = next;
                     current->next = next_next;
                     next->next = current;
+                    pthread_mutex_lock(&swap_mutex[tid]);
+                    swap_success[tid]++;
+                    pthread_mutex_unlock(&swap_mutex[tid]);
                 }
                 pthread_spin_unlock(&next->sync);
                 pthread_spin_unlock(&current->sync);
@@ -272,9 +273,6 @@ void *swap_thread(void *arg){
                 }
             }
         }
-        pthread_mutex_lock(&swap_mutex[tid]);
-        swap_success[tid]++;
-        pthread_mutex_unlock(&swap_mutex[tid]);
     }
     return NULL;
 }
