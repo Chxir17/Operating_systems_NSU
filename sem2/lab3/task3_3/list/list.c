@@ -33,14 +33,14 @@ Cache* map_add(Map* map, const char* url) {
     }
 
     long length = strlen(url) + 1;
-    newCache->url = (char*)malloc(length);
+    newCache->url = (char*)malloc(length + 1);
     if (!newCache->url) {
         perror("Can't allocate memory for cache");
         abort();
     }
     memcpy(newCache->url, url, length);
 
-    newCache->url[++length] = '\0';
+    newCache->url[length] = '\0';
     newCache->response = list_init();
     newCache->next = map->first;
     map->first = newCache;
@@ -66,7 +66,7 @@ Node* list_add(List* list, const char* value, long length) {
     }
 
     newNode->size = length;
-    newNode->value = (char*)malloc(length);
+    newNode->value = (char*)malloc(length + 1);
     if (!newNode->value) {
         perror("Can't allocate memory for list node");
         free(newNode);
@@ -74,7 +74,7 @@ Node* list_add(List* list, const char* value, long length) {
     }
 
     memcpy(newNode->value, value, length);
-    newNode->value[++length] = '\0';
+    newNode->value[length] = '\0';
     if (pthread_rwlock_init(&newNode->sync, NULL) != 0) {
         perror("Can't initialize rwlock");
         abort();
