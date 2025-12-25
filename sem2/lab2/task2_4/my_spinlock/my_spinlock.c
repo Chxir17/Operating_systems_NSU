@@ -3,7 +3,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdatomic.h>
-#include <linux/futex.h>
 #include <sys/syscall.h>
 
 #include "my_spinlock.h"
@@ -27,5 +26,5 @@ void my_spinlock_lock(my_spinlock_t *lock) {
 
 void my_spinlock_unlock(my_spinlock_t *lock) {
     const int expected = 0;
-    atomic_compare_exchange_weak(lock, &expected, 1);
+    atomic_compare_exchange_strong(lock, &expected, 1);
 }
