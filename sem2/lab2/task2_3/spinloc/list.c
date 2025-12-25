@@ -12,10 +12,10 @@ long long equals_iterations = 0;
 long long swap_success[3] = {0, 0, 0};
 atomic_int stop_flag = 0;
 
-pthread_spinlock_t increasing_lock = PTHREAD_SPINLOCK_INITIALIZER;
-pthread_spinlock_t decreasing_lock = PTHREAD_SPINLOCK_INITIALIZER;
-pthread_spinlock_t equal_lock= PTHREAD_SPINLOCK_INITIALIZER;
-pthread_spinlock_t swap_lock[3]= {PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER};
+pthread_spinlock_t increasing_mutex = PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t decreasing_mutex = PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t equal_mutex = PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t swap_mutex[3]= {PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER};
 
 void random_string(char *buf, const int len){
     const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
