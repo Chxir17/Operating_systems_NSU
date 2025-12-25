@@ -12,10 +12,10 @@ long long equals_iterations = 0;
 long long swap_success[3] = {0, 0, 0};
 atomic_int stop_flag = 0;
 
-pthread_mutex_t increasing_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t decreasing_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t equal_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t swap_mutex[3] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+pthread_spinlock_t increasing_lock = PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t decreasing_lock = PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t equal_lock= PTHREAD_SPINLOCK_INITIALIZER;
+pthread_spinlock_t swap_lock[3]= {PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER,PTHREAD_SPINLOCK_INITIALIZER};
 
 void random_string(char *buf, const int len){
     const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
@@ -109,9 +109,9 @@ void *increasing_thread(void *arg) {
         Node *current = prev->next;
         if (!current) {
             pthread_spin_unlock(&prev->sync);
-            pthread_mutex_lock(&increasing_mutex);
+            pthread_spin_lock(&increasing_mutex);
             increasing_iterations++;
-            pthread_mutex_unlock(&increasing_mutex);
+            pthread_spin_unlock(&increasing_mutex);
             continue;
         }
 
@@ -126,15 +126,18 @@ void *increasing_thread(void *arg) {
             if (current_length < next_length) {
                 counter++;
             }
+            else {
+                counter = 0;
+            }
             prev = current;
             current = current->next;
         }
         pthread_spin_unlock(&current->sync);
         pthread_spin_unlock(&prev->sync);
 
-        pthread_mutex_lock(&increasing_mutex);
+        pthread_spin_lock(&increasing_mutex);
         increasing_iterations++;
-        pthread_mutex_unlock(&increasing_mutex);
+        pthread_spin_unlock(&increasing_mutex);
     }
     return NULL;
 }
@@ -149,9 +152,9 @@ void *decreasing_thread(void *arg) {
         Node *current = prev->next;
         if (!current) {
             pthread_spin_unlock(&prev->sync);
-            pthread_mutex_lock(&decreasing_mutex);
+            pthread_spin_lock(&decreasing_mutex);
             decreasing_iterations++;
-            pthread_mutex_unlock(&decreasing_mutex);
+            pthread_spin_unlock(&decreasing_mutex);
             continue;
         }
 
@@ -175,9 +178,9 @@ void *decreasing_thread(void *arg) {
         pthread_spin_unlock(&current->sync);
         pthread_spin_unlock(&prev->sync);
 
-        pthread_mutex_lock(&decreasing_mutex);
+        pthread_spin_lock(&decreasing_mutex);
         decreasing_iterations++;
-        pthread_mutex_unlock(&decreasing_mutex);
+        pthread_spin_unlock(&decreasing_mutex);
     }
     return NULL;
 }
@@ -192,9 +195,9 @@ void *equal_thread(void *arg) {
         Node *current = prev->next;
         if (!current) {
             pthread_spin_unlock(&prev->sync);
-            pthread_mutex_lock(&equal_mutex);
+            pthread_spin_lock(&equal_mutex);
             equals_iterations++;
-            pthread_mutex_unlock(&equal_mutex);
+            pthread_spin_unlock(&equal_mutex);
             continue;
         }
 
@@ -218,9 +221,9 @@ void *equal_thread(void *arg) {
         pthread_spin_unlock(&current->sync);
         pthread_spin_unlock(&prev->sync);
 
-        pthread_mutex_lock(&equal_mutex);
+        pthread_spin_lock(&equal_mutex);
         equals_iterations++;
-        pthread_mutex_unlock(&equal_mutex);
+        pthread_spin_unlock(&equal_mutex);
     }
     return NULL;
 }
@@ -247,18 +250,14 @@ void *swap_thread(void *arg){
                 pthread_spin_unlock(&prev->sync);
                 break;
             }
-            pthread_spin_lock(&next->sync);
 
             if ((rand() % 25) == 0) {
-
+                pthread_spin_lock(&next->sync);
                 if (prev->next == current && current->next == next) {
                     Node *next_next = next->next;
                     prev->next = next;
                     current->next = next_next;
                     next->next = current;
-                    pthread_mutex_lock(&swap_mutex[tid]);
-                    swap_success[tid]++;
-                    pthread_mutex_unlock(&swap_mutex[tid]);
                 }
                 pthread_spin_unlock(&next->sync);
                 pthread_spin_unlock(&current->sync);
@@ -273,29 +272,32 @@ void *swap_thread(void *arg){
                 }
             }
         }
+        pthread_spin_lock(&swap_mutex[tid]);
+        swap_success[tid]++;
+        pthread_spin_unlock(&swap_mutex[tid]);
     }
     return NULL;
 }
 
 void *monitor_thread(void *arg){
     while (!stop_flag){
-        pthread_mutex_lock(&increasing_mutex);
+        pthread_spin_unlock(&increasing_mutex);
         const long long increasings = increasing_iterations;
-        pthread_mutex_unlock(&increasing_mutex);
+        pthread_spin_unlock(&increasing_mutex);
 
-        pthread_mutex_lock(&decreasing_mutex);
+        pthread_spin_lock(&decreasing_mutex);
         const long long decreasings = decreasing_iterations;
-        pthread_mutex_unlock(&decreasing_mutex);
+        pthread_spin_unlock(&decreasing_mutex);
 
-        pthread_mutex_lock(&equal_mutex);
+        pthread_spin_lock(&equal_mutex);
         const long long equals = equals_iterations;
-        pthread_mutex_unlock(&equal_mutex);
+        pthread_spin_unlock(&equal_mutex);
 
         long long swap[3];
         for (int i = 0; i < 3; i++) {
-            pthread_mutex_lock(&swap_mutex[i]);
+            pthread_spin_lock(&swap_mutex[i]);
             swap[i] = swap_success[i];
-            pthread_mutex_unlock(&swap_mutex[i]);
+            pthread_spin_unlock(&swap_mutex[i]);
         }
         printf("Increases=%lld, Decreases=%lld, Equals=%lld, Swaps=[%lld, %lld, %lld]\n", increasings, decreasings, equals, swap[0], swap[1], swap[2]);
         sleep(1);
