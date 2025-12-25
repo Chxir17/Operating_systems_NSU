@@ -71,7 +71,7 @@ List *list_init(const long long n) {
             abort();
         }
 
-        srand(time(NULL));
+        srand(1);
         const int len = 1 + rand() % (MAX_STR - 1);
         random_string(node->value, len);
         node->next = NULL;
