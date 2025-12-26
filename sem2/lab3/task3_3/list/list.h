@@ -12,9 +12,13 @@ typedef struct Node {
     pthread_rwlock_t sync;
 } Node;
 
+// list.h
 typedef struct List {
     Node* first;
     Node* last;
+    pthread_mutex_t mutex;      // для синхронизации читателей
+    pthread_cond_t cond;        // пробуждение при новом чанке
+    int complete;               // завершена ли загрузка
 } List;
 
 typedef struct Cache {
@@ -39,5 +43,5 @@ List* list_init();
 Node* list_add(List* list, const char* value, long length);
 void list_print(const List* list);
 void list_destroy(List* list);
-
+int list_wait_for_data(List* list, Node** current);
 #endif //OS_LIST_H
