@@ -68,6 +68,10 @@ void *client_handler(void *args) {
         while (!cur && cache_node->state == CACHE_LOADING) {
             pthread_cond_wait(&cache_node->cond, &cache_node->mutex);
             cur = cache_node->response->first;
+            if (cache_node->state == CACHE_ERROR) {
+                pthread_mutex_unlock(&cache_node->mutex);
+                goto cleanup;
+            }
         }
 
         if (!cur && cache_node->state == CACHE_READY)
@@ -122,6 +126,8 @@ downloader: {
     }
 
     /* ---- BODY ---- */
+    int aborted = 0;
+
     while (1) {
         char buf[BUFFER_SIZE];
         ssize_t n = recv(target_socket, buf, BUFFER_SIZE, 0);
@@ -134,9 +140,24 @@ downloader: {
         pthread_cond_broadcast(&cache_node->cond);
         pthread_mutex_unlock(&cache_node->mutex);
 
-        if (send_to_client(client_socket, buf, 0, n) == -1)
+        if (send_to_client(client_socket, buf, 0, n) == -1) {
+            aborted = 1;
             break;
+        }
     }
+
+    pthread_mutex_lock(&cache_node->mutex);
+
+    if (aborted) {
+        cache_node->state = CACHE_ERROR;
+        // optionally: очистить cache_node->response
+    } else {
+        cache_node->state = CACHE_READY;
+    }
+
+    pthread_cond_broadcast(&cache_node->cond);
+    pthread_mutex_unlock(&cache_node->mutex);
+
 
 
     close(target_socket);
