@@ -17,11 +17,24 @@ typedef struct List {
     Node* last;
 } List;
 
+typedef enum {
+    CACHE_LOADING,
+    CACHE_READY,
+    CACHE_ERROR
+} cache_state_t;
+
 typedef struct Cache {
     char* url;
     List* response;
+
+    cache_state_t state;
+
+    pthread_mutex_t mutex;
+    pthread_cond_t  cond;
+
     struct Cache* next;
 } Cache;
+
 
 typedef struct Map {
     Cache* first;
