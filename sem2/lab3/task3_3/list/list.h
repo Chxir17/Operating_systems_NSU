@@ -12,20 +12,18 @@ typedef struct Node {
     pthread_rwlock_t sync;
 } Node;
 
-// list.h
 typedef struct List {
     Node* first;
     Node* last;
-    pthread_mutex_t mutex;      // для синхронизации читателей
-    pthread_cond_t cond;        // пробуждение при новом чанке
-    int complete;               // завершена ли загрузка
+    pthread_mutex_t mutex;      // для читателей
+    pthread_cond_t cond;        // пробуждение при новом части
+    int complete;
 } List;
 
 typedef struct Cache {
     char* url;
     List* response;
     struct Cache* next;
-    // is_complete и loading больше НЕ нужны — всё управляется через List::complete
 } Cache;
 
 typedef struct Map {

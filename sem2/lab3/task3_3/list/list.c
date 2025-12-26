@@ -1,9 +1,6 @@
 #include <string.h>
 #include "list.h"
 
-
-// list.c
-// Возвращает: 1 — есть новые чанки или завершено, 0 — ошибка/таймаут
 int list_wait_for_data(List* list, Node** current) {
     pthread_mutex_lock(&list->mutex);
     while (*current == list->last && !list->complete) {
@@ -30,7 +27,7 @@ Map* map_init() {
     }
     return map;
 }
-// list.c
+
 List* list_init() {
     List* list = malloc(sizeof(List));
     if (!list) {
@@ -53,7 +50,7 @@ Cache* map_add(Map* map, const char* url) {
     if (!newCache) abort();
 
     newCache->url = strdup(url);
-    newCache->response = list_init();  // должен инициализировать mutex/cond/complete=0
+    newCache->response = list_init();
     newCache->next = map->first;
     map->first = newCache;
     return newCache;
@@ -70,7 +67,6 @@ Cache* map_find_by_url(const Map* map, const char* url) {
     return NULL;
 }
 
-// list.c
 Node* list_add(List* list, const char* value, long length) {
     Node* newNode = malloc(sizeof(Node));
     if (!newNode) {
@@ -92,8 +88,6 @@ Node* list_add(List* list, const char* value, long length) {
         abort();
     }
     newNode->next = NULL;
-
-    // Критическая секция для обновления списка
     pthread_mutex_lock(&list->mutex);
     if (list->first == NULL) {
         list->first = list->last = newNode;
@@ -101,7 +95,7 @@ Node* list_add(List* list, const char* value, long length) {
         list->last->next = newNode;
         list->last = newNode;
     }
-    pthread_cond_broadcast(&list->cond); // <-- ВАЖНО!
+    pthread_cond_broadcast(&list->cond);
     pthread_mutex_unlock(&list->mutex);
 
     return newNode;

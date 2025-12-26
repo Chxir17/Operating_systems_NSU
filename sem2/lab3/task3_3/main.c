@@ -13,8 +13,8 @@
 #include "list/list.h"
 
 #define PORT 8080
-#define MAX_THREADS 100
-#define MAX_CLIENTS 10
+#define MAX_THREADS 1000
+#define MAX_CLIENTS 1000
 #define BUFFER_SIZE 4096
 
 typedef struct ThreadArgs {
@@ -23,13 +23,12 @@ typedef struct ThreadArgs {
     sem_t *sem;
 } ThreadArgs;
 
-// Вспомогательная функция: ждать новых данных в списке или завершения
 static int wait_for_more_data_or_complete(List* list, Node** current) {
     pthread_mutex_lock(&list->mutex);
     while (*current == list->last && !list->complete) {
         if (pthread_cond_wait(&list->cond, &list->mutex) != 0) {
             pthread_mutex_unlock(&list->mutex);
-            return 0; // ошибка
+            return 0;
         }
     }
     pthread_mutex_unlock(&list->mutex);
@@ -37,7 +36,7 @@ static int wait_for_more_data_or_complete(List* list, Node** current) {
 }
 
 void *client_handler(void *args) {
-    ThreadArgs *thread_args = (ThreadArgs *)args;
+    ThreadArgs *thread_args = args;
     int client_socket = thread_args->client_socket;
     Map *cache = thread_args->cache;
     sem_t *sem = thread_args->sem;
@@ -67,12 +66,12 @@ void *client_handler(void *args) {
             if (current == NULL) {
                 // Достигли конца — ждём новых данных или завершения
                 if (!wait_for_more_data_or_complete(cache_node->response, &current)) {
-                    break; // ошибка ожидания
+                    break;
                 }
                 if (current == NULL) continue; // повторная проверка
             }
 
-            // Читаем текущий чанк
+            // Читаем текущий часть
             pthread_rwlock_rdlock(&current->sync);
             ssize_t sent = send(client_socket, current->value, current->size, 0);
             if (sent == -1) {
@@ -88,7 +87,7 @@ void *client_handler(void *args) {
             Node *next = current->next;
             pthread_mutex_unlock(&cache_node->response->mutex);
 
-            // Если это последний чанк и загрузка завершена — выход
+            // Если это последний часть и загрузка завершена
             if (next == NULL && is_complete) {
                 printf("Streaming from cache completed\n");
                 break;
@@ -100,11 +99,10 @@ void *client_handler(void *args) {
         goto cleanup;
     }
 
-    // === Создаём новый кэш ===
+    //новый кэш
     cache_node = map_add(cache, request->search_path);
     pthread_mutex_unlock(&cache->mutex);
 
-    // === Подключаемся к целевому серверу ===
     int target_socket = http_connect(request);
     if (target_socket == -1) {
         goto mark_failed_and_cleanup;
@@ -115,36 +113,27 @@ void *client_handler(void *args) {
         goto mark_failed_and_cleanup;
     }
 
-    // === Передача данных: заголовки + тело ===
+    //заголовки + тело
     long buffer_length;
     int buffer_size = BUFFER_SIZE;
     Node *current = NULL;
     Node *prev = NULL;
     int client_alive = 1;
 
-    // --- Заголовки ---
     while (1) {
         char *buffer = read_line(target_socket, &buffer_length);
         if (!buffer) break;
-
-        // ВСЕГДА кэшируем
         current = list_add(cache_node->response, buffer, buffer_length);
-
-        // Отправляем клиенту, если он ещё подключён
         if (client_alive) {
             if (send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
                 client_alive = 0;
                 printf("Client disconnected during header streaming\n");
             }
         }
-
-        // Обновляем размер буфера, если есть Content-Length
         if (strstr(buffer, "Content-Length: ")) {
             long cl = atoll(buffer + strlen("Content-Length: "));
             buffer_size = (cl < BUFFER_SIZE) ? cl : BUFFER_SIZE;
         }
-
-        // Пустая строка — конец заголовков
         if (buffer[0] == '\r' && buffer[1] == '\n') {
             free(buffer);
             break;
@@ -157,13 +146,11 @@ void *client_handler(void *args) {
         pthread_rwlock_wrlock(&current->sync);
     }
 
-    // --- Тело ответа ---
+    //body
     while (1) {
         long body_length;
         char *body = read_body(target_socket, &body_length, buffer_size);
         if (!body) break;
-
-        // ВСЕГДА кэшируем
         prev = current;
         current = list_add(cache_node->response, body, body_length);
         pthread_rwlock_wrlock(&current->sync);
@@ -172,7 +159,7 @@ void *client_handler(void *args) {
             pthread_rwlock_unlock(&prev->sync);
         }
 
-        // Отправляем клиенту, если жив
+        //если жив
         if (client_alive) {
             if (send_to_client(client_socket, body, 0, body_length) == -1) {
                 client_alive = 0;
@@ -182,29 +169,23 @@ void *client_handler(void *args) {
 
         free(body);
     }
-
-    // Завершаем последний чанк
     if (current) {
         pthread_rwlock_unlock(&current->sync);
     }
 
     close(target_socket);
-
-    // === Помечаем кэш как завершённый ===
     pthread_mutex_lock(&cache_node->response->mutex);
     cache_node->response->complete = 1;
     pthread_cond_broadcast(&cache_node->response->cond);
     pthread_mutex_unlock(&cache_node->response->mutex);
-
     printf("Cache fully loaded\n");
     goto cleanup;
 
 mark_failed_and_cleanup:
     // Помечаем как неудачный (но не удаляем — чтобы не создавать повторно)
     pthread_mutex_lock(&cache->mutex);
-    // Можно добавить флаг ошибки, но для простоты просто завершим как "неполный"
     pthread_mutex_lock(&cache_node->response->mutex);
-    cache_node->response->complete = 1; // даже при ошибке — разблокируем читателей
+    cache_node->response->complete = 1;
     pthread_cond_broadcast(&cache_node->response->cond);
     pthread_mutex_unlock(&cache_node->response->mutex);
     pthread_mutex_unlock(&cache->mutex);
