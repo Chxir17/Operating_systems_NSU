@@ -12,7 +12,7 @@
 #include "handler/messages/messages.h"
 #include "list/list.h"
 
-#define PORT 80
+#define PORT 8080
 #define MAX_THREADS 100
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 4096
