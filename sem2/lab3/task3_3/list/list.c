@@ -26,26 +26,21 @@ List* list_init() {
 }
 
 Cache* map_add(Map* map, const char* url) {
-    Cache* newCache = malloc(sizeof(Cache));
-    if (!newCache) {
-        perror("Can't allocate memory for cache node");
-        abort();
-    }
+    Cache* c = malloc(sizeof(Cache));
 
-    long length = strlen(url) + 1;
-    newCache->url = (char*)malloc(length + 1);
-    if (!newCache->url) {
-        perror("Can't allocate memory for cache");
-        abort();
-    }
-    memcpy(newCache->url, url, length);
+    c->url = strdup(url);
+    c->response = list_init();
+    c->completed = 0;
 
-    newCache->url[length] = '\0';
-    newCache->response = list_init();
-    newCache->next = map->first;
-    map->first = newCache;
-    return map->first;
+    pthread_mutex_init(&c->mutex, NULL);
+    pthread_cond_init(&c->cond, NULL);
+
+    c->next = map->first;
+    map->first = c;
+
+    return c;
 }
+
 
 Cache* map_find_by_url(const Map* map, const char* url) {
     Cache* current = map->first;
