@@ -24,71 +24,95 @@ typedef struct ThreadArgs {
 } ThreadArgs;
 
 void *client_handler(void *args) {
-    const ThreadArgs *thread_args = args;
-    const int client_socket = thread_args->client_socket;
+    ThreadArgs *thread_args = args; // УБРАЛ const!
+    int client_socket = thread_args->client_socket;
     Map *cache = thread_args->cache;
     sem_t *sem = thread_args->sem;
-
-    Cache *cache_node = NULL;
-    List *cachedResponse = NULL;
 
     Request *request = read_header(client_socket);
     if (!request || !request->search_path) {
         close(client_socket);
+        free(args);
+        sem_post(sem);
         return NULL;
     }
 
     printf("URL: %s\n", request->search_path);
+
     pthread_mutex_lock(&cache->mutex);
-    cache_node = map_find_by_url(cache, request->search_path);
+    Cache *cache_node = map_find_by_url(cache, request->search_path);
 
     if (cache_node) {
-        cachedResponse = cache_node->response;
-        pthread_mutex_unlock(&cache->mutex);
-        printf("Found in cache, start to send it\n");
-
-        Node *current = cachedResponse->first;
-        while (current) {
-            pthread_rwlock_rdlock(&current->sync);
-            if (send_to_client(client_socket,current->value,0, current->size) == -1) {
-                pthread_rwlock_unlock(&current->sync);
-                goto cleanup;
-            }
-
-            pthread_rwlock_unlock(&current->sync);
-            current = current->next;
+        // Уже есть в кэше — ждём завершения загрузки
+        while (!cache_node->is_complete && cache_node->loading) {
+            pthread_cond_wait(&cache_node->cond, &cache->mutex);
         }
+        pthread_mutex_unlock(&cache->mutex);
 
-        printf("Send from cache success\n");
-        goto cleanup;
+        if (cache_node->is_complete) {
+            printf("Found in cache, sending...\n");
+            Node *current = cache_node->response->first;
+            while (current) {
+                pthread_rwlock_rdlock(&current->sync);
+                if (send_to_client(client_socket, current->value, 0, current->size) == -1) {
+                    pthread_rwlock_unlock(&current->sync);
+                    goto cleanup;
+                }
+                pthread_rwlock_unlock(&current->sync);
+                current = current->next;
+            }
+            printf("Sent from cache successfully\n");
+            goto cleanup;
+        } else {
+            // loading = 0 и is_complete = 0 — значит, загрузка прервалась
+            pthread_mutex_unlock(&cache->mutex);
+            printf("Cache entry broken, reloading...\n");
+            // Продолжаем как новый запрос
+        }
     }
-    printf("Not in cache, create cache node\n");
+
+    // Создаём новый кэш
     cache_node = map_add(cache, request->search_path);
-    cachedResponse = cache_node->response;
     pthread_mutex_unlock(&cache->mutex);
+
+    // Загружаем данные
     int target_socket = http_connect(request);
     if (target_socket == -1) {
+        // Помечаем как неудачный (не завершён)
+        pthread_mutex_lock(&cache->mutex);
+        cache_node->loading = 0;
+        cache_node->is_complete = 0;
+        pthread_cond_broadcast(&cache_node->cond);
+        pthread_mutex_unlock(&cache->mutex);
         goto cleanup;
     }
 
     if (request_send(target_socket, request) == -1) {
         close(target_socket);
+        pthread_mutex_lock(&cache->mutex);
+        cache_node->loading = 0;
+        cache_node->is_complete = 0;
+        pthread_cond_broadcast(&cache_node->cond);
+        pthread_mutex_unlock(&cache->mutex);
         goto cleanup;
     }
+
+    // Отправляем клиенту и кэшируем
     long buffer_length;
     int buffer_size = BUFFER_SIZE;
     Node *current = NULL;
     Node *prev = NULL;
+    int client_alive = 1;
 
+    // Заголовки
     while (1) {
         char *buffer = read_line(target_socket, &buffer_length);
         if (!buffer) break;
 
-        current = list_add(cachedResponse, buffer, buffer_length);
+        current = list_add(cache_node->response, buffer, buffer_length);
 
-        if (send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
-            free(buffer);
-            goto cleanup;
+        if (client_alive && send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
+            client_alive = 0; // перестаём слать клиенту, но продолжаем кэшировать
         }
 
         if (strstr(buffer, "Content-Length: ")) {
@@ -100,40 +124,47 @@ void *client_handler(void *args) {
             free(buffer);
             break;
         }
-
         free(buffer);
     }
-    pthread_rwlock_wrlock(&current->sync);
 
+    if (current) pthread_rwlock_wrlock(&current->sync);
+
+    // Тело
     while (1) {
         long body_length;
         char *body = read_body(target_socket, &body_length, buffer_size);
         if (!body) break;
 
-        if (send_to_client(client_socket, body, 0, body_length) == -1) {
-            free(body);
-            pthread_rwlock_unlock(&current->sync);
-            goto cleanup;
+        if (client_alive && send_to_client(client_socket, body, 0, body_length) == -1) {
+            client_alive = 0;
         }
 
         prev = current;
-        current = list_add(cachedResponse, body, body_length);
-
+        current = list_add(cache_node->response, body, body_length);
         pthread_rwlock_wrlock(&current->sync);
-        pthread_rwlock_unlock(&prev->sync);
+
+        if (prev) pthread_rwlock_unlock(&prev->sync);
 
         free(body);
     }
 
-    pthread_rwlock_unlock(&current->sync);
+    if (current) pthread_rwlock_unlock(&current->sync);
     close(target_socket);
 
-    printf("Send & cache body success\n");
+    // Помечаем кэш как завершённый
+    pthread_mutex_lock(&cache->mutex);
+    cache_node->is_complete = 1;
+    cache_node->loading = 0;
+    pthread_cond_broadcast(&cache_node->cond);
+    pthread_mutex_unlock(&cache->mutex);
+
+    printf("Cache fully loaded and sent\n");
 
 cleanup:
-    sem_post(sem);
     request_destroy(request);
     close(client_socket);
+    free(args);
+    sem_post(sem);
     return NULL;
 }
 

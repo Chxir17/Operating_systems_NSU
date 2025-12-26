@@ -33,18 +33,22 @@ Cache* map_add(Map* map, const char* url) {
     }
 
     long length = strlen(url) + 1;
-    newCache->url = (char*)malloc(length + 1);
+    newCache->url = (char*)malloc(length);
     if (!newCache->url) {
-        perror("Can't allocate memory for cache");
+        perror("Can't allocate memory for cache url");
         abort();
     }
     memcpy(newCache->url, url, length);
-
-    newCache->url[length] = '\0';
     newCache->response = list_init();
     newCache->next = map->first;
+    newCache->is_complete = 0;
+    newCache->loading = 1;
+    if (pthread_cond_init(&newCache->cond, NULL) != 0) {
+        perror("Can't initialize condvar");
+        abort();
+    }
     map->first = newCache;
-    return map->first;
+    return newCache;
 }
 
 Cache* map_find_by_url(const Map* map, const char* url) {
