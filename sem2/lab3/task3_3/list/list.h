@@ -25,9 +25,7 @@ typedef struct Cache {
     char* url;
     List* response;
     struct Cache* next;
-    int is_complete;
-    int loading;
-    pthread_cond_t cond;
+    // is_complete и loading больше НЕ нужны — всё управляется через List::complete
 } Cache;
 
 typedef struct Map {

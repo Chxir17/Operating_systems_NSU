@@ -50,26 +50,11 @@ List* list_init() {
 
 Cache* map_add(Map* map, const char* url) {
     Cache* newCache = malloc(sizeof(Cache));
-    if (!newCache) {
-        perror("Can't allocate memory for cache node");
-        abort();
-    }
+    if (!newCache) abort();
 
-    long length = strlen(url) + 1;
-    newCache->url = (char*)malloc(length);
-    if (!newCache->url) {
-        perror("Can't allocate memory for cache url");
-        abort();
-    }
-    memcpy(newCache->url, url, length);
-    newCache->response = list_init();
+    newCache->url = strdup(url);
+    newCache->response = list_init();  // должен инициализировать mutex/cond/complete=0
     newCache->next = map->first;
-    newCache->is_complete = 0;
-    newCache->loading = 1;
-    if (pthread_cond_init(&newCache->cond, NULL) != 0) {
-        perror("Can't initialize condvar");
-        abort();
-    }
     map->first = newCache;
     return newCache;
 }
