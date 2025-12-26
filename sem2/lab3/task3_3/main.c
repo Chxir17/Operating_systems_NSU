@@ -123,18 +123,21 @@ downloader: {
 
     /* ---- BODY ---- */
     while (1) {
-        long blen;
-        char *body = read_body(target_socket, &blen, bufsize);
-        if (!body) break;
+        char buf[BUFFER_SIZE];
+        ssize_t n = recv(target_socket, buf, BUFFER_SIZE, 0);
+
+        if (n <= 0)
+            break;
 
         pthread_mutex_lock(&cache_node->mutex);
-        list_add(cache_node->response, body, blen);
+        list_add(cache_node->response, buf, n);
         pthread_cond_broadcast(&cache_node->cond);
         pthread_mutex_unlock(&cache_node->mutex);
 
-        send_to_client(client_socket, body, 0, blen);
-        free(body);
+        if (send_to_client(client_socket, buf, 0, n) == -1)
+            break;
     }
+
 
     close(target_socket);
 
