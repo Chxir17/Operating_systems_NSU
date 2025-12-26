@@ -51,7 +51,7 @@ void *client_handler(void *args) {
 
     printf("URL: %s\n", request->search_path);
 
-    // === Попытка найти в кэше ===
+    //ищем в кэше
     pthread_mutex_lock(&cache->mutex);
     Cache *cache_node = map_find_by_url(cache, request->search_path);
 
@@ -210,7 +210,7 @@ void *start_proxy_server(void *arg) {
     sem_t sem;
     sem_init(&sem, 0, MAX_THREADS);
 
-    printf("Proxy server ready on port %d\n", PORT);
+    printf("Proxy server started on port %d\n", PORT);
 
     while (1) {
         int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);

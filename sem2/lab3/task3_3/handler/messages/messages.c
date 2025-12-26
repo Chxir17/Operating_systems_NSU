@@ -71,6 +71,12 @@ void parse_method(Request* result, const char* buffer) {
     const char* token = NULL;
     int s = METHOD;
 
+    //бьем 1 строку на части
+    /*Например, из "GET /path HTTP/1.1\r\n" получим токены:
+    "GET"
+    "/path"
+    "HTTP/1.1"
+    */
     while ((token = strsep(&p, " \r\n")) != NULL) {
         if (s == METHOD) {
             int found = 0;
@@ -110,6 +116,7 @@ void parse_method(Request* result, const char* buffer) {
 
     free(copy);
 }
+
 
 void parse_metadata(Request *result, const char *buffer) {
     char *buffer_copy = strdup(buffer);

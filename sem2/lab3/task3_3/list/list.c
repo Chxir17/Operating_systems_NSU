@@ -4,7 +4,7 @@
 int list_wait_for_data(List* list, Node** current) {
     pthread_mutex_lock(&list->mutex);
     while (*current == list->last && !list->complete) {
-        // Ждём нового чанка или завершения
+        // Ждём нового куска или завершения
         if (pthread_cond_wait(&list->cond, &list->mutex) != 0) {
             pthread_mutex_unlock(&list->mutex);
             return 0;

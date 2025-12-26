@@ -44,7 +44,6 @@ void init_server_socket(int *server_socket, int port, const int max_clients) {
         close(*server_socket);
         exit(EXIT_FAILURE);
     }
-    printf("Proxy server started on port %d\n", port);
 }
 
 Request *read_header(const int socket) {
@@ -52,7 +51,9 @@ Request *read_header(const int socket) {
 	request_init(&requests);
     long buffer_length;
 	char *buffer = read_line(socket, &buffer_length);
+
     printf("Header: %s\n", buffer);
+
 	parse_method(requests, buffer);
 
 	while(1) {
@@ -60,6 +61,8 @@ Request *read_header(const int socket) {
 		if(buffer[0] == '\r' && buffer[1] == '\n') {
 			break;
 		}
+
+	    //заголоки
 		parse_metadata(requests, buffer);
 		free(buffer);
 	}
