@@ -20,11 +20,6 @@ typedef struct List {
 typedef struct Cache {
     char* url;
     List* response;
-
-    int completed;              // 1 — загрузка завершена
-    pthread_mutex_t mutex;      // защита cache entry
-    pthread_cond_t cond;        // уведомление о новых данных
-
     struct Cache* next;
 } Cache;
 
