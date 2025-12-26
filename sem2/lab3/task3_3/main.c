@@ -36,7 +36,6 @@ void *client_handler(void *args) {
         return NULL;
     }
 
-    printf("URL: %s\n", request->search_path);
     Cache* cache_node = map_find_by_url(cache, request->search_path);
     if (!cache_node) {
         cache_node = map_add(cache, request->search_path);
@@ -44,40 +43,44 @@ void *client_handler(void *args) {
 
     List* cachedResponse = cache_node->response;
 
-    // Соединяемся с сервером и начинаем загрузку в отдельный поток
     int target_socket = http_connect(request);
-    if (target_socket != -1) {
-        Node* last_node = NULL;
-        while (1) {
-            long body_length;
-            char* body = read_body(target_socket, &body_length, BUFFER_SIZE);
-            if (!body) break;
-
-            Node* node = list_add(cachedResponse, body, body_length);
-            free(body);
-
-            pthread_rwlock_wrlock(&node->sync);
-            node->ready = 1;
-            pthread_cond_broadcast(&node->cond); // оповестить клиентов
-            pthread_rwlock_unlock(&node->sync);
-
-            last_node = node;
-        }
-        close(target_socket);
+    if (target_socket == -1) {
+        close(client_socket);
+        request_destroy(request);
+        sem_post(sem);
+        return NULL;
     }
 
-    // Клиент читает данные из кеша
-    Node* current = cachedResponse->first;
+    // Загружаем и отправляем по мере поступления
+    Node* current = NULL;
+    char buffer[BUFFER_SIZE];
+    long bytes_read;
+
+    while ((bytes_read = recv(target_socket, buffer, sizeof(buffer), 0)) > 0) {
+        // добавляем в кеш
+        current = list_add(cachedResponse, buffer, bytes_read);
+
+        pthread_rwlock_wrlock(&current->sync);
+        current->ready = 1;
+        pthread_cond_broadcast(&current->cond);
+        pthread_rwlock_unlock(&current->sync);
+
+        // сразу отправляем клиенту
+        if (send_to_client(client_socket, current->value, 0, current->size) == -1) {
+            break;
+        }
+    }
+
+    close(target_socket);
+
+    // ждем, пока клиент прочитает оставшиеся данные
+    current = cachedResponse->first;
     while (current) {
         pthread_rwlock_wrlock(&current->sync);
         while (!current->ready) {
             pthread_cond_wait(&current->cond, &current->sync);
         }
         pthread_rwlock_unlock(&current->sync);
-
-        if (send_to_client(client_socket, current->value, 0, current->size) == -1) {
-            break;
-        }
         current = current->next;
     }
 
@@ -87,6 +90,7 @@ void *client_handler(void *args) {
     free(thread_args);
     return NULL;
 }
+
 
 
 
