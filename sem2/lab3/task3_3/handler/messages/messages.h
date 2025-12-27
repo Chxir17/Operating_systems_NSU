@@ -1,7 +1,7 @@
 #ifndef OS_MESSAGES_H
 #define OS_MESSAGES_H
 
-#include "../../proxy/proxy.h"
+#include "../../request/request.h"
 
 void request_init(Request**);
 void request_destroy(Request*);

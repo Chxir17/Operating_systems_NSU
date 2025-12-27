@@ -117,7 +117,6 @@ void parse_method(Request* result, const char* buffer) {
     free(copy);
 }
 
-
 void parse_metadata(Request *result, const char *buffer) {
     char *buffer_copy = strdup(buffer);
     const char *key = strdup(strtok(buffer_copy, ":"));

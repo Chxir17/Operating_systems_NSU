@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "proxy.h"
+#include "request.h"
 
 const char *list_get_key(struct METADATA_HEAD *list, const char *key) {
     Metadata_item *item;

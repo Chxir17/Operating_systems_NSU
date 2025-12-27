@@ -1,7 +1,7 @@
 #ifndef OS_HANDLERS_H
 #define OS_HANDLERS_H
 #include <sys/types.h>
-#include "../proxy/proxy.h"
+#include "../request/request.h"
 
 void init_server_socket(int *server_socket, int port, int max_clients);
 Request *read_header(int socket);

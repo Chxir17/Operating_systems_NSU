@@ -8,7 +8,7 @@
 #include <semaphore.h>
 
 #include "handler/handlers.h"
-#include "proxy/proxy.h"
+#include "request/request.h"
 #include "handler/messages/messages.h"
 #include "list/list.h"
 
@@ -64,14 +64,14 @@ void *client_handler(void *args) {
 
         while (1) {
             if (current == NULL) {
-                // Достигли конца — ждём новых данных или завершения
+                //ждём новых данных или завершения
                 if (!wait_for_more_data_or_complete(cache_node->response, &current)) {
                     break;
                 }
-                if (current == NULL) continue; // повторная проверка
+                if (current == NULL) continue;
             }
 
-            // Читаем текущий часть
+            // Читаем текущую часть
             pthread_rwlock_rdlock(&current->sync);
             ssize_t sent = send(client_socket, current->value, current->size, 0);
             if (sent == -1) {
@@ -87,15 +87,13 @@ void *client_handler(void *args) {
             Node *next = current->next;
             pthread_mutex_unlock(&cache_node->response->mutex);
 
-            // Если это последний часть и загрузка завершена
+
             if (next == NULL && is_complete) {
                 printf("Streaming from cache completed\n");
                 break;
             }
-
             current = next;
         }
-
         goto cleanup;
     }
 
@@ -113,7 +111,7 @@ void *client_handler(void *args) {
         goto mark_failed_and_cleanup;
     }
 
-    //заголовки + тело
+    //заголовки
     long buffer_length;
     int buffer_size = BUFFER_SIZE;
     Node *current = NULL;
@@ -124,6 +122,7 @@ void *client_handler(void *args) {
         char *buffer = read_line(target_socket, &buffer_length);
         if (!buffer) break;
         current = list_add(cache_node->response, buffer, buffer_length);
+        //если жив
         if (client_alive) {
             if (send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
                 client_alive = 0;
@@ -146,7 +145,7 @@ void *client_handler(void *args) {
         pthread_rwlock_wrlock(&current->sync);
     }
 
-    //body
+    //тело
     while (1) {
         long body_length;
         char *body = read_body(target_socket, &body_length, buffer_size);
