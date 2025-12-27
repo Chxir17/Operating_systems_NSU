@@ -77,7 +77,11 @@ void *client_handler(void *args) {
             if (sent == -1) {
                 pthread_rwlock_unlock(&current->sync);
                 printf("Client disconnected during cache streaming\n");
-                goto cleanup;
+                request_destroy(request);
+                close(client_socket);
+                free(args);
+                sem_post(sem);
+                return NULL;
             }
             pthread_rwlock_unlock(&current->sync);
 
@@ -94,7 +98,11 @@ void *client_handler(void *args) {
             }
             current = next;
         }
-        goto cleanup;
+        request_destroy(request);
+        close(client_socket);
+        free(args);
+        sem_post(sem);
+        return NULL;
     }
 
     //новый кэш
@@ -103,12 +111,22 @@ void *client_handler(void *args) {
 
     int target_socket = http_connect(request);
     if (target_socket == -1) {
-        goto mark_failed_and_cleanup;
+        pthread_mutex_lock(&cache->mutex);
+        pthread_mutex_lock(&cache_node->response->mutex);
+        cache_node->response->complete = 1;
+        pthread_cond_broadcast(&cache_node->response->cond);
+        pthread_mutex_unlock(&cache_node->response->mutex);
+        pthread_mutex_unlock(&cache->mutex);
     }
 
     if (request_send(target_socket, request) == -1) {
         close(target_socket);
-        goto mark_failed_and_cleanup;
+        pthread_mutex_lock(&cache->mutex);
+        pthread_mutex_lock(&cache_node->response->mutex);
+        cache_node->response->complete = 1;
+        pthread_cond_broadcast(&cache_node->response->cond);
+        pthread_mutex_unlock(&cache_node->response->mutex);
+        pthread_mutex_unlock(&cache->mutex);
     }
 
     //заголовки
@@ -178,18 +196,6 @@ void *client_handler(void *args) {
     pthread_cond_broadcast(&cache_node->response->cond);
     pthread_mutex_unlock(&cache_node->response->mutex);
     printf("Cache fully loaded\n");
-    goto cleanup;
-
-mark_failed_and_cleanup:
-    // Помечаем как неудачный (но не удаляем — чтобы не создавать повторно)
-    pthread_mutex_lock(&cache->mutex);
-    pthread_mutex_lock(&cache_node->response->mutex);
-    cache_node->response->complete = 1;
-    pthread_cond_broadcast(&cache_node->response->cond);
-    pthread_mutex_unlock(&cache_node->response->mutex);
-    pthread_mutex_unlock(&cache->mutex);
-
-cleanup:
     request_destroy(request);
     close(client_socket);
     free(args);
