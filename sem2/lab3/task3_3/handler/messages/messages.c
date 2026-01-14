@@ -65,11 +65,11 @@ void parse_method(Request* result, const char* buffer) {
         DONE
     };
 
-    char* p;
+    char* pointer;
     int len;
-    char *copy = p = strdup(buffer);
+    char *copy = pointer = strdup(buffer);
     const char* token = NULL;
-    int s = METHOD;
+    int state = METHOD;
 
     //бьем 1 строку на части
     /*Например, из "GET /path HTTP/1.1\r\n" получим токены:
@@ -77,8 +77,8 @@ void parse_method(Request* result, const char* buffer) {
     "/path"
     "HTTP/1.1"
     */
-    while ((token = strsep(&p, " \r\n")) != NULL) {
-        if (s == METHOD) {
+    while ((token = strsep(&pointer, " \r\n")) != NULL) {
+        if (state == METHOD) {
             int found = 0;
             for (int i = 0; i < methods_len; i++) {
                 if (strcmp(token, methods[i]) == 0) {
@@ -92,14 +92,14 @@ void parse_method(Request* result, const char* buffer) {
                 free(copy);
                 return;
             }
-            s++;
+            state++;
 
-        } else if (s == URL) {
+        } else if (state == URL) {
             len = strlen(token);
             result->search_path = strndup(token, len);
-            s++;
+            state++;
 
-        } else if (s == VERSION) {
+        } else if (state == VERSION) {
             if (strncmp(token, "HTTP/1.0", strlen("HTTP/1.0")) == 0) {
                 result->version = HTTP_VERSION_1_0;
             } else if (strncmp(token, "HTTP/1.1", strlen("HTTP/1.1")) == 0) {
@@ -107,9 +107,9 @@ void parse_method(Request* result, const char* buffer) {
             } else {
                 result->version = HTTP_VERSION_INVALID;
             }
-            s++;
+            state++;
 
-        } else if (s == DONE) {
+        } else if (state == DONE) {
             break;
         }
     }

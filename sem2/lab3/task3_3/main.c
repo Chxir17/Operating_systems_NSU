@@ -23,18 +23,6 @@ typedef struct ThreadArgs {
     sem_t *sem;
 } ThreadArgs;
 
-static int wait_for_more_data_or_complete(List* list, Node** current) {
-    pthread_mutex_lock(&list->mutex);
-    while (*current == list->last && !list->complete) {
-        if (pthread_cond_wait(&list->cond, &list->mutex) != 0) {
-            pthread_mutex_unlock(&list->mutex);
-            return 0;
-        }
-    }
-    pthread_mutex_unlock(&list->mutex);
-    return 1;
-}
-
 void *client_handler(void *args) {
     ThreadArgs *thread_args = args;
     int client_socket = thread_args->client_socket;
@@ -65,7 +53,7 @@ void *client_handler(void *args) {
         while (1) {
             if (current == NULL) {
                 //ждём новых данных или завершения
-                if (!wait_for_more_data_or_complete(cache_node->response, &current)) {
+                if (!list_wait_for_data(cache_node->response, &current)) {
                     break;
                 }
                 if (current == NULL) continue;
