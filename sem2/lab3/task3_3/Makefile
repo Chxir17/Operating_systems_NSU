@@ -5,7 +5,7 @@ TYPE=.c
 CC=gcc
 RM=rm
 CFLAGS=-Wall
-FILES=handler/handlers.c handler/messages/messages.c list/list.c proxy/proxy.c
+FILES=handler/handlers.c handler/messages/messages.c list/list.c request/request.c
 LIBS=-lpthread
 LDFLAGS=-o $@
 
