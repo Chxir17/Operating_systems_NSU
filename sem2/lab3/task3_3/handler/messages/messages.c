@@ -44,10 +44,34 @@ void request_destroy(Request *req) {
     }
     free(req);
 }
+void update_request_from_location(Request *req, const char *location) {
+    char host[256] = {0};
+    char path[2048] = "/";
+
+    if (sscanf(location, "http://%255[^/]%2047s", host, path) >= 1) {
+        request_set_host(req, host);
+        request_set_url(req, location);
+    }
+}
 
 void request_set_url(Request *req, const char *new_url) {
     free(req->search_path);
     req->search_path = strdup(new_url);
+}
+void request_set_host(Request *req, const char *host) {
+    Metadata_item *item;
+    TAILQ_FOREACH(item, &req->metadata_head, entries) {
+        if (strcasecmp(item->key, "Host") == 0) {
+            free((void*)item->value);
+            item->value = strdup(host);
+            return;
+        }
+    }
+
+    item = malloc(sizeof(*item));
+    item->key = strdup("Host");
+    item->value = strdup(host);
+    TAILQ_INSERT_TAIL(&req->metadata_head, item, entries);
 }
 
 void request_print(Request *req) {

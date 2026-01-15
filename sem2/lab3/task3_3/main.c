@@ -23,6 +23,7 @@ typedef struct ThreadArgs {
     sem_t *sem;
 } ThreadArgs;
 
+
 void *client_handler(void *args) {
     ThreadArgs *thread_args = args;
     int client_socket = thread_args->client_socket;
@@ -126,36 +127,21 @@ void *client_handler(void *args) {
     Node *current = NULL;
     Node *prev = NULL;
     int client_alive = 1;
-
     int redirects = 0;
     int buffer_size = BUFFER_SIZE;
     while (redirects < MAX_REDIRECTS) {
         char buffer[BUFFER_SIZE];
+        char *location = NULL;
         if (read_line(target_socket, buffer, sizeof(buffer)) <= 0) {
             break;
         }
 
         int status = parse_http_status(buffer);
-        current = list_add(cache_node->response, buffer, strlen(buffer));
 
-        if (client_alive) {
-            if (send_to_client(client_socket, buffer, 0, strlen(buffer)) == -1) {
-                client_alive = 0;
-                printf("\033[35mClient disconnected during header streaming\033[0m\n");
-            }
-        }
         while (1) {
             long len = read_line(target_socket, buffer, sizeof(buffer));
             if (len <= 0) {
                 break;
-            }
-            current = list_add(cache_node->response, buffer, len);
-
-            if (client_alive) {
-                if (send_to_client(client_socket, buffer, 0, strlen(buffer)) == -1) {
-                    client_alive = 0;
-                    printf("\033[35mClient disconnected during header streaming\033[0m\n");
-                }
             }
 
             if (is_redirect(status) && strncasecmp(buffer, "Location:", 9) == 0) {
@@ -163,8 +149,7 @@ void *client_handler(void *args) {
                 while (*space == ' ') {
                     space++;
                 }
-                redirect_location = strndup(space, strlen(space));
-                redirect_location[strcspn(redirect_location, "\r\n")] = 0;
+                location = strndup(space, strcspn(space, "\r\n"));
             }
 
             if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
@@ -177,28 +162,26 @@ void *client_handler(void *args) {
             }
         }
 
-        if (is_redirect(status)) {
-            char *location = redirect_location;
-            redirect_location = NULL;
-            if (!location) {
-                break;
-            }
-
-            printf("\033[33mRedirect to: %s\033[0m\n", location);
-
-            close(target_socket);
-            request_set_url(request, location);
-            free(location);
-
-            target_socket = http_connect(request);
-            if (target_socket == -1) {
-                break;
-            }
-            request_send(target_socket, request);
-            redirects++;
-            continue;
+        if (!is_redirect(status)) {
+            break;
         }
-        break;
+
+        if (!location) {
+            break;
+        }
+
+        printf("\033[33mRedirect to: %s\033[0m\n", location);
+
+        close(target_socket);
+        update_request_from_location(request, location);
+        free(location);
+
+        target_socket = http_connect(request);
+        if (target_socket == -1) {
+            break;
+        }
+        request_send(target_socket, request);
+        redirects++;
     }
 
     if (current) {
