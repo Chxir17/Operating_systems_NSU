@@ -45,6 +45,11 @@ void request_destroy(Request *req) {
     free(req);
 }
 
+void request_set_url(Request *req, const char *new_url) {
+    free(req->search_path);
+    req->search_path = strdup(new_url);
+}
+
 void request_print(Request *req) {
     printf("HTTP_REQUEST \n");
     if (req->version == HTTP_VERSION_1_0) {

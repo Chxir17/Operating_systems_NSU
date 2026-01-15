@@ -93,6 +93,29 @@ long read_body(int socket, char *buf, long max_buffer) {
     return total > 0 ? total : -1;
 }
 
+int parse_http_status(const char *status_line) {
+    const char *code = strchr(status_line, ' ');
+    if (!code) {
+        return -1;
+    }
+    return atoi(code + 1);
+}
+
+int is_redirect(int status) {
+    return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+}
+
+char *get_location_header(Request *req) {
+    const char *location = list_get_key(&req->metadata_head, "Location");
+    if (!location) {
+        return NULL;
+    }
+    return strdup(location);
+}
+
+
+
+
 int http_connect(Request *req) {
     const char *host_header = list_get_key(&req->metadata_head, "Host");
     if (!host_header) {

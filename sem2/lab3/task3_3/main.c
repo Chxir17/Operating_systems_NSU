@@ -121,12 +121,13 @@ void *client_handler(void *args) {
     }
 
     //заголовки
-    int buffer_size = BUFFER_SIZE;
-    char buffer[BUFFER_SIZE];
     Node *current = NULL;
     Node *prev = NULL;
     int client_alive = 1;
 
+    int redirects = 0;
+    int buffer_size = BUFFER_SIZE;
+    char buffer[BUFFER_SIZE];
     while (1) {
         const long len = read_line(target_socket, buffer, sizeof(buffer));
         if (len <= 0) {
@@ -148,6 +149,70 @@ void *client_handler(void *args) {
         if (buffer[0] == '\r' && buffer[1] == '\n') {
             break;
         }
+    }
+
+
+    while (redirects < MAX_REDIRECTS) {
+        char buffer[BUFFER_SIZE];
+        if (read_line(target_socket, buffer, sizeof(buffer)) <= 0) {
+            break;
+        }
+
+        int status = parse_http_status(buffer);
+        current = list_add(cache_node->response, buffer, strlen(buffer));
+
+        if (client_alive) {
+            if (send_to_client(client_socket, buffer, 0, len) == -1) {
+                client_alive = 0;
+                printf("\033[35mClient disconnected during header streaming\033[0m\n");
+            }
+        }
+        while (1) {
+            long len = read_line(target_socket, buffer, sizeof(buffer));
+            if (len <= 0) {
+                break;
+            }
+
+            current = list_add(cache_node->response, buffer, len);
+
+            if (client_alive) {
+                if (send_to_client(client_socket, buffer, 0, len) == -1) {
+                    client_alive = 0;
+                    printf("\033[35mClient disconnected during header streaming\033[0m\n");
+                }
+            }
+
+            if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
+                const long content_length = atoll(buffer + strlen("Content-Length: "));
+                buffer_size = (content_length < BUFFER_SIZE) ? content_length : BUFFER_SIZE;
+            }
+
+            if (buffer[0] == '\r' && buffer[1] == '\n') {
+                break;
+            }
+        }
+
+        if (is_redirect(status)) {
+            char *location = get_location_header(request);
+            if (!location) {
+                break;
+            }
+
+            printf("\033[33mRedirect to: %s\033[0m\n", location);
+
+            close(target_socket);
+            request_set_url(request, location);
+            free(location);
+
+            target_socket = http_connect(request);
+            if (target_socket == -1) {
+                break;
+            }
+            request_send(target_socket, request);
+            redirects++;
+            continue;
+        }
+        break;
     }
 
     if (current) {
