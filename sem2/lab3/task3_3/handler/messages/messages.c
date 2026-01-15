@@ -157,30 +157,17 @@ char* extract_uri(const char* search_path) {
     return uri;
 }
 
-char *build_request(Request *req, ssize_t *length) {
+char *build_request(Request *req, long long *length) {
     const char *search_path = req->search_path;
     char* uri = extract_uri(search_path);
-    long size = strlen("GET ");
-    char *request_buffer = malloc(size + 1);
-    strcpy(request_buffer, "GET ");
-
-    size += strlen(search_path) + 1;
-    request_buffer = (char*)realloc(request_buffer, size);
-    strcat(request_buffer, uri);
-    printf("SEARCH PATH: %s\n", request_buffer);
+    long size = strlen("GET ") + strlen(uri);
 
     if (req->version == HTTP_VERSION_1_0) {
         size += strlen(" HTTP/1.0\r\n");
-        request_buffer = (char*)realloc(request_buffer, size);
-        strcat(request_buffer, " HTTP/1.0\r\n");
-
     } else if (req->version == HTTP_VERSION_1_1) {
         size += strlen(" HTTP/1.1\r\n");
-        request_buffer = (char*)realloc(request_buffer, size);
-        strcat(request_buffer, " HTTP/1.1\r\n");
-
     } else {
-        free(request_buffer);
+        free(uri);
         return NULL;
     }
 
@@ -189,9 +176,36 @@ char *build_request(Request *req, ssize_t *length) {
         if (strcmp(item->key, "Connection") == 0 || strcmp(item->key, "Proxy-Connection") == 0) {
             continue;
         }
+        size += strlen(item->key) + 2 + strlen(item->value) + 2; // key + ": " + value + "\r\n"
+    }
 
-        size += strlen(item->key) + strlen(": ") + strlen(item->value) + strlen("\r\n");
-        request_buffer = (char*)realloc(request_buffer, size);
+    if (req->version == HTTP_VERSION_1_1) {
+        size += strlen("Connection: close\r\n");
+    }
+
+    size += 2; //"\r\n"
+
+    char* request_buffer = malloc(size + 1);
+    if (!request_buffer) {
+        perror("malloc in build_request");
+        free(uri);
+        return NULL;
+    }
+
+    strcpy(request_buffer, "GET ");
+    strcat(request_buffer, uri);
+    free(uri);
+
+    if (req->version == HTTP_VERSION_1_0) {
+        strcat(request_buffer, " HTTP/1.0\r\n");
+    } else {
+        strcat(request_buffer, " HTTP/1.1\r\n");
+    }
+
+    TAILQ_FOREACH(item, &req->metadata_head, entries) {
+        if (strcmp(item->key, "Connection") == 0 || strcmp(item->key, "Proxy-Connection") == 0) {
+            continue;
+        }
         strcat(request_buffer, item->key);
         strcat(request_buffer, ": ");
         strcat(request_buffer, item->value);
@@ -199,13 +213,9 @@ char *build_request(Request *req, ssize_t *length) {
     }
 
     if (req->version == HTTP_VERSION_1_1) {
-        size += strlen("Connection: close\r\n");
-        request_buffer = (char*)realloc(request_buffer, size);
         strcat(request_buffer, "Connection: close\r\n");
     }
 
-    size += strlen("\r\n");
-    request_buffer = (char*)realloc(request_buffer, size);
     strcat(request_buffer, "\r\n");
 
     *length = size;
