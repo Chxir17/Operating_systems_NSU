@@ -47,7 +47,7 @@ void *client_handler(void *args) {
         // Кэш уже существует — выходим из мьютекса и начинаем streaming
         pthread_mutex_unlock(&cache->mutex);
 
-        printf("Cache entry exists, streaming data...\n");
+        printf("\033[34mCache entry exists, streaming data...\033[0m\n");
         Node *current = cache_node->response->first;
 
         while (1) {
@@ -94,6 +94,7 @@ void *client_handler(void *args) {
         sem_post(sem);
         return NULL;
     }
+    printf("\033[31mCreating new cache\033[0m\n");
 
     //новый кэш
     cache_node = map_add(cache, request->search_path);
@@ -180,7 +181,7 @@ void *client_handler(void *args) {
     cache_node->response->complete = 1;
     pthread_cond_broadcast(&cache_node->response->cond);
     pthread_mutex_unlock(&cache_node->response->mutex);
-    printf("Cache fully loaded\n");
+    printf("\033[32mCache fully loaded\033[0m\n");
     request_destroy(request);
     close(client_socket);
     free(args);
