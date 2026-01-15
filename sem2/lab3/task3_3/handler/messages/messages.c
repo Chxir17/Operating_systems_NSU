@@ -33,12 +33,14 @@ void request_destroy(Request *req) {
         return;
     }
     free(req->search_path);
-    Metadata_item *item, *tmp;
-    TAILQ_FOREACH_SAFE(item, &req->metadata_head, entries, tmp) {
+    Metadata_item *item = TAILQ_FIRST(&req->metadata_head);
+    while (item) {
+        Metadata_item *tmp = TAILQ_NEXT(item, entries);
         TAILQ_REMOVE(&req->metadata_head, item, entries);
         free((void*)item->key);
         free((void*)item->value);
         free(item);
+        item = tmp;
     }
     free(req);
 }
