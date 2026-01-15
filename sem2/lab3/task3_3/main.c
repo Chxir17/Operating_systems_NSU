@@ -40,6 +40,8 @@ void *client_handler(void *args) {
     printf("URL: %s\n", request->search_path);
 
     //ищем в кэше
+    char *redirect_location = NULL;
+
     pthread_mutex_lock(&cache->mutex);
     Cache *cache_node = map_find_by_url(cache, request->search_path);
 
@@ -147,14 +149,22 @@ void *client_handler(void *args) {
             if (len <= 0) {
                 break;
             }
-
             current = list_add(cache_node->response, buffer, len);
 
             if (client_alive) {
-                if (send_to_client(client_socket, buffer, 0, len) == -1) {
+                if (send_to_client(client_socket, buffer, 0, strlen(buffer)) == -1) {
                     client_alive = 0;
                     printf("\033[35mClient disconnected during header streaming\033[0m\n");
                 }
+            }
+
+            if (is_redirect(status) && strncasecmp(buffer, "Location:", 9) == 0) {
+                char *space = buffer + 9;
+                while (*space == ' ') {
+                    space++;
+                }
+                redirect_location = strndup(space, strlen(space));
+                redirect_location[strcspn(redirect_location, "\r\n")] = 0;
             }
 
             if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
@@ -168,7 +178,8 @@ void *client_handler(void *args) {
         }
 
         if (is_redirect(status)) {
-            char *location = get_location_header(request);
+            char *location = redirect_location;
+            redirect_location = NULL;
             if (!location) {
                 break;
             }
