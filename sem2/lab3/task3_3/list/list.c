@@ -3,15 +3,26 @@
 
 int list_wait_for_data(List* list, Node** current) {
     pthread_mutex_lock(&list->mutex);
-    while (*current == list->last && !list->complete) {
-        // Ждём нового куска или завершения
-        if (pthread_cond_wait(&list->cond, &list->mutex) != 0) {
+    while (1) {
+        Node *next = NULL;
+        if (*current == NULL) {
+            next = list->first;
+        } else {
+            next = (*current)->next;
+        }
+
+        if (next != NULL) {
+            *current = next;
+            pthread_mutex_unlock(&list->mutex);
+            return 1;
+        }
+
+        if (list->complete) {
             pthread_mutex_unlock(&list->mutex);
             return 0;
         }
+        pthread_cond_wait(&list->cond, &list->mutex);
     }
-    pthread_mutex_unlock(&list->mutex);
-    return 1;
 }
 
 Map* map_init() {
