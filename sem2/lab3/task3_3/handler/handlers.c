@@ -47,26 +47,28 @@ void init_server_socket(int *server_socket, int port, const int max_clients) {
 }
 
 Request *read_header(const int socket) {
-	Request *requests;
-	request_init(&requests);
+    Request *requests;
+    request_init(&requests);
     long buffer_length;
-	char *buffer = read_line(socket, &buffer_length);
+    char *buffer = read_line(socket, &buffer_length);
 
     printf("Header: %s\n", buffer);
 
-	parse_method(requests, buffer);
+    parse_method(requests, buffer);
+    free(buffer);
 
-	while(1) {
-		buffer = read_line(socket, &buffer_length);
-		if(buffer[0] == '\r' && buffer[1] == '\n') {
-			break;
-		}
+    while (1) {
+        buffer = read_line(socket, &buffer_length);
+        if (buffer[0] == '\r' && buffer[1] == '\n') {
+            free(buffer);
+            break;
+        }
 
-	    //заголоки
-		parse_metadata(requests, buffer);
-		free(buffer);
-	}
-	return requests;
+        //заголоки
+        parse_metadata(requests, buffer);
+        free(buffer);
+    }
+    return requests;
 }
 
 char *read_body(int socket, long *length, int max_buffer) {
