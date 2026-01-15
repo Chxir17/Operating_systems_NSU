@@ -115,29 +115,32 @@ int http_connect(Request *req) {
 
     printf("Connecting to HTTP server: %s:%s\n", host, port_str);
 
-    struct hostent *host_info;
-    if ((host_info = gethostbyname(host)) == NULL) {
-        perror("Error getting host by name");
+    struct addrinfo hints, *res = NULL;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    int err = getaddrinfo(host, port_str, &hints, &res);
+    if (err != 0 || !res) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
         return -1;
     }
 
-    int website_socket;
-    if ((website_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    int website_socket = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (website_socket == -1) {
         perror("Error creating socket");
+        freeaddrinfo(res);
         return -1;
     }
 
-    struct sockaddr_in server_address = {0};
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(atoi(port_str));
-    memcpy(&server_address.sin_addr, host_info->h_addr_list[0], host_info->h_length);
-
-    if (connect(website_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+    if (connect(website_socket, res->ai_addr, res->ai_addrlen) < 0) {
         perror("Error connecting to server");
         close(website_socket);
+        freeaddrinfo(res);
         return -1;
     }
 
+    freeaddrinfo(res);
     printf("Successfully connected to HTTP server: %s\n", host);
 
     return website_socket;
