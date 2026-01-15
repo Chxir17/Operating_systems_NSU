@@ -108,7 +108,6 @@ char *read_body(int socket, long *length, int max_buffer) {
 
     if (total_bytes == 0) {
         printf("The end get body from website\n");
-
         return NULL;
     }
 	*length = total_bytes;
@@ -116,41 +115,43 @@ char *read_body(int socket, long *length, int max_buffer) {
 }
 
 int http_connect(Request *req) {
-	char *host = (char*)list_get_key(&req->metadata_head, "Host");
-    char *port = strstr(host, ":");
+    const char *host_header = list_get_key(&req->metadata_head, "Host");
+    if (!host_header) {
+        fprintf(stderr, "No Host header\n");
+        return -1;
+    }
 
-    if(port == NULL) {
-        port = (char*)calloc(3, sizeof(char) + 1);
-        strcat(port, "80");
+    char host[256];
+    char port_str[6] = "80";
+
+    strncpy(host, host_header, sizeof(host) - 1);
+    host[sizeof(host) - 1] = '\0';
+
+    char *colon_pointer = strchr(host, ':');
+    if (colon_pointer) {
+        *colon_pointer = '\0';
+        strncpy(port_str, colon_pointer + 1, sizeof(port_str) - 1);
+        port_str[sizeof(port_str) - 1] = '\0';
     }
-    else {
-        host = strtok(host, ":");
-        port++;
+
+    printf("Connecting to HTTP server: %s:%s\n", host, port_str);
+
+    struct hostent *host_info;
+    if ((host_info = gethostbyname(host)) == NULL) {
+        perror("Error getting host by name");
+        return -1;
     }
-    printf("Connecting to HTTP server: %s\n", host);
-	if(host == NULL) {
-		return -1;
-	}
 
     int website_socket;
-    struct hostent *host_info;
-    struct sockaddr_in server_address;
-
     if ((website_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("Error creating socket");
         return -1;
     }
 
-    if ((host_info = gethostbyname(host)) == NULL) {
-        perror("Error getting host by name");
-        close(website_socket);
-        return -1;
-    }
-
-    memset(&server_address, 0, sizeof(server_address));
+    struct sockaddr_in server_address = {0};
     server_address.sin_family = AF_INET;
-    memcpy(&server_address.sin_addr.s_addr, host_info->h_addr_list[0], host_info->h_length);
-    server_address.sin_port = htons(atoi(port));
+    server_address.sin_port = htons(atoi(port_str));
+    memcpy(&server_address.sin_addr, host_info->h_addr_list[0], host_info->h_length);
 
     if (connect(website_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
         perror("Error connecting to server");
@@ -160,7 +161,7 @@ int http_connect(Request *req) {
 
     printf("Successfully connected to HTTP server: %s\n", host);
 
-	return website_socket;
+    return website_socket;
 }
 
 int send_to_client(int client_socket, char* data, int packages_size, long length) {
@@ -195,46 +196,69 @@ int send_to_client(int client_socket, char* data, int packages_size, long length
 }
 
 char *read_line(int socket, long *length) {
-    int buffer_size = 3;
-    char *buffer = malloc(sizeof(char) * buffer_size + 1);
-    if (!buffer) {
-        perror("Malloc in read_line()");
-        abort();
-    }
-    char c;
-    long recbytes = 0;
-    int counter = 0;
+    int capacity = 128;
+    char *buf = malloc(capacity);
+    int len = 0;
+    char read;
 
-    while(1) {
-        recbytes = recv(socket, &c, 1, 0);
-        if (recbytes == -1) {
-            perror("Recv");
-        } else if (recbytes == 0) {
-            buffer[0] = '\r';
-            buffer[1] = '\n';
-            buffer[2] = '\0';
-
-            *length = 3;
-            return buffer;
+    while (recv(socket, &read, 1, 0) == 1) {
+        if (len + 1 >= capacity) {
+            capacity *= 2;
+            buf = realloc(buf, capacity);
         }
-        buffer[counter++] = c;
-
-        if (c == '\n') {
-            buffer[counter] = '\0';
-
-            *length = counter;
-            return buffer;
-        }
-
-        if (counter >= buffer_size) {
-            buffer_size += 1;
-            char *tmp = realloc(buffer, sizeof(char) * buffer_size + 1);
-            if (!tmp) {
-                perror("realloc in read_line()");
-                free(buffer);
-                abort();
-            }
-            buffer = tmp;
+        buf[len++] = read;
+        if (read == '\n') {
+            break;
         }
     }
+
+    buf[len] = '\0';
+    *length = len;
+    return buf;
 }
+
+
+// char *read_line(int socket, long *length) {
+//     int buffer_size = 3;
+//     char *buffer = malloc(sizeof(char) * buffer_size + 1);
+//     if (!buffer) {
+//         perror("Malloc in read_line()");
+//         abort();
+//     }
+//     char c;
+//     long recbytes = 0;
+//     int counter = 0;
+//
+//     while(1) {
+//         recbytes = recv(socket, &c, 1, 0);
+//         if (recbytes == -1) {
+//             perror("Recv");
+//         } else if (recbytes == 0) {
+//             buffer[0] = '\r';
+//             buffer[1] = '\n';
+//             buffer[2] = '\0';
+//
+//             *length = 3;
+//             return buffer;
+//         }
+//         buffer[counter++] = c;
+//
+//         if (c == '\n') {
+//             buffer[counter] = '\0';
+//
+//             *length = counter;
+//             return buffer;
+//         }
+//
+//         if (counter >= buffer_size) {
+//             buffer_size += 1;
+//             char *tmp = realloc(buffer, sizeof(char) * buffer_size + 1);
+//             if (!tmp) {
+//                 perror("realloc in read_line()");
+//                 free(buffer);
+//                 abort();
+//             }
+//             buffer = tmp;
+//         }
+//     }
+//}

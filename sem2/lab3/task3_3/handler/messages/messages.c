@@ -29,13 +29,18 @@ void request_init(Request **req) {
 }
 
 void request_destroy(Request *req) {
+    if (!req) {
+        return;
+    }
     free(req->search_path);
-    Metadata_item *item;
-    TAILQ_FOREACH(item, &req->metadata_head, entries) {
-        free((char*)item->key);
-        free((char*)item->value);
+    Metadata_item *item, *tmp;
+    TAILQ_FOREACH_SAFE(item, &req->metadata_head, entries, tmp) {
+        TAILQ_REMOVE(&req->metadata_head, item, entries);
+        free((void*)item->key);
+        free((void*)item->value);
         free(item);
     }
+    free(req);
 }
 
 void request_print(Request *req) {
