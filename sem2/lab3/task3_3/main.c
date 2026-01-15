@@ -56,12 +56,14 @@ void *client_handler(void *args) {
                 if (!list_wait_for_data(cache_node->response, &current)) {
                     break;
                 }
-                if (current == NULL) continue;
+                if (current == NULL) {
+                    continue;
+                }
             }
 
             // Читаем текущую часть
             pthread_rwlock_rdlock(&current->sync);
-            ssize_t sent = send(client_socket, current->value, current->size, 0);
+            long sent = send(client_socket, current->value, current->size, 0);
             if (sent == -1) {
                 pthread_rwlock_unlock(&current->sync);
                 printf("Client disconnected during cache streaming\n");
@@ -120,8 +122,6 @@ void *client_handler(void *args) {
     //заголовки
     int buffer_size = BUFFER_SIZE;
     char buffer[BUFFER_SIZE];
-    Node *current = NULL;
-    Node *prev = NULL;
     int client_alive = 1;
 
     while (1) {
@@ -130,7 +130,7 @@ void *client_handler(void *args) {
             break;
         }
 
-        current = list_add(cache_node->response, buffer, len);
+        list_add(cache_node->response, buffer, len);
 
         if (client_alive) {
             if (send_to_client(client_socket, buffer, 0, len) == -1) {
@@ -147,30 +147,17 @@ void *client_handler(void *args) {
         }
     }
 
-    if (current) {
-        pthread_rwlock_wrlock(&current->sync);
-    }
 
     //тело
     char body_buf[BUFFER_SIZE];
     long body_len;
     while ((body_len = read_body(target_socket, body_buf, buffer_size)) > 0) {
-        prev = current;
-        current = list_add(cache_node->response, body_buf, body_len);
-        pthread_rwlock_wrlock(&current->sync);
-
-        if (prev) {
-            pthread_rwlock_unlock(&prev->sync);
-        }
-
+        list_add(cache_node->response, body_buf, body_len);\
         if (client_alive) {
             if (send_to_client(client_socket, body_buf, 0, body_len) == -1) {
                 client_alive = 0;
             }
         }
-    }
-    if (current) {
-        pthread_rwlock_unlock(&current->sync);
     }
 
     close(target_socket);
