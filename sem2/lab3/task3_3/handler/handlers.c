@@ -201,10 +201,10 @@ int send_to_client(int client_socket, char* data, int packages_size, long length
     return 0;
 }
 
-long read_line(int socket, char *buf, long maxlen) {
+long read_line(int socket, char *buf, long max_len) {
     long len = 0;
     char read;
-    while (len + 1 < maxlen) {
+    while (len + 1 < max_len) {
         const long read_bytes = recv(socket, &read, 1, 0);
         if (read_bytes <= 0) {
             break;
