@@ -119,18 +119,25 @@ void parse_method(Request* result, const char* buffer) {
 
 void parse_metadata(Request *result, const char *buffer) {
     char *buffer_copy = strdup(buffer);
-    const char *key = strdup(strtok(buffer_copy, ":"));
-    char *value = strtok(NULL, "\r");
-    char *p = value;
-    while (*p == ' ') {
-        p++;
+    char *save_pointer = NULL;
+    char *key_token = strtok_r(buffer_copy, ":", &save_pointer);
+    if (!key_token) {
+        free(buffer_copy);
+        return;
     }
-    value = strdup(p);
-    free(buffer_copy);
+    char *value_token = strtok_r(NULL, "\r", &save_pointer);
+    if (!value_token) {
+        free(buffer_copy);
+        return;
+    }
+    while (*value_token == ' ') {
+        value_token++;
+    }
     Metadata_item *item = malloc(sizeof(*item));
-    item->key = key;
-    item->value = value;
+    item->key = strdup(key_token);
+    item->value = strdup(value_token);
     TAILQ_INSERT_TAIL(&result->metadata_head, item, entries);
+    free(buffer_copy);
 }
 
 char* extract_uri(const char* search_path) {
@@ -157,7 +164,7 @@ char* extract_uri(const char* search_path) {
     return uri;
 }
 
-char *build_request(Request *req, long long *length) {
+char *build_request(Request *req, long *length) {
     const char *search_path = req->search_path;
     char* uri = extract_uri(search_path);
     long size = strlen("GET ") + strlen(uri);
