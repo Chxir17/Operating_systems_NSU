@@ -67,7 +67,6 @@ void *client_handler(void *args) {
             long sent = send(client_socket, current->value, current->size, 0);
             if (sent == -1) {
                 pthread_rwlock_unlock(&current->sync);
-                printf("\033[35mClient disconnected during cache streaming\033[0m\n");
                 request_destroy(request);
                 close(client_socket);
                 free(args);
