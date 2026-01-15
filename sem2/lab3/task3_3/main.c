@@ -41,7 +41,6 @@ void *client_handler(void *args) {
     printf("URL: %s\n", request->search_path);
 
     //ищем в кэше
-
     pthread_mutex_lock(&cache->mutex);
     Cache *cache_node = map_find_by_url(cache, request->search_path);
 
@@ -83,7 +82,6 @@ void *client_handler(void *args) {
             Node *next = current->next;
             pthread_mutex_unlock(&cache_node->response->mutex);
 
-
             if (next == NULL && is_complete) {
                 printf("\033[32mStreaming from cache completed\033[0m\n");
                 break;
@@ -96,8 +94,8 @@ void *client_handler(void *args) {
         sem_post(sem);
         return NULL;
     }
-    printf("\033[31mCreating new cache\033[0m\n");
 
+    printf("\033[31mCreating new cache\033[0m\n");
     //новый кэш
     cache_node = map_add(cache, request->search_path);
     pthread_mutex_unlock(&cache->mutex);
@@ -130,38 +128,47 @@ void *client_handler(void *args) {
     int buffer_size = BUFFER_SIZE;
     while (redirects < MAX_REDIRECTS) {
         char buffer[BUFFER_SIZE];
+        char headers[BUFFER_SIZE * 16];
+        size_t headers_len = 0;
         char *location = NULL;
-        if (read_line(target_socket, buffer, sizeof(buffer)) <= 0) {
+
+        long len;
+        if ((len = read_line(target_socket, buffer, sizeof(buffer))) <= 0) {
             break;
         }
 
         int status = parse_http_status(buffer);
+        memcpy(headers + headers_len, buffer, len);
+        headers_len += len;
 
-        while (1) {
-            long len = read_line(target_socket, buffer, sizeof(buffer));
-            if (len <= 0) {
-                break;
-            }
+        while ((len = read_line(target_socket, buffer, sizeof(buffer))) > 0) {
+            memcpy(headers + headers_len, buffer, len);
+            headers_len += len;
 
             if (is_redirect(status) && strncasecmp(buffer, "Location:", 9) == 0) {
                 char *space = buffer + 9;
-                while (*space == ' ') {
-                    space++;
-                }
+                while (*space == ' ') space++;
                 location = strndup(space, strcspn(space, "\r\n"));
             }
 
-            if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
-                const long content_length = atoll(buffer + strlen("Content-Length: "));
-                buffer_size = (content_length < BUFFER_SIZE) ? content_length : BUFFER_SIZE;
+            if (strncmp(buffer, "\r\n", 2) == 0) {
+                break;
             }
 
-            if (buffer[0] == '\r' && buffer[1] == '\n') {
-                break;
+            if (strncmp(buffer, "Content-Length: ", 16) == 0) {
+                const long content_length = atoll(buffer + 16);
+                buffer_size = (content_length < BUFFER_SIZE) ? content_length : BUFFER_SIZE;
             }
         }
 
         if (!is_redirect(status)) {
+            if (client_alive) {
+                if (send(client_socket, headers, headers_len, 0) <= 0) {
+                    client_alive = 0;
+                }
+            }
+            current = list_add(cache_node->response, headers, headers_len);
+            pthread_rwlock_wrlock(&current->sync);
             break;
         }
 
@@ -183,20 +190,6 @@ void *client_handler(void *args) {
         redirects++;
     }
 
-
-    char buffer[BUFFER_SIZE];
-    long len = read_line(target_socket, buffer, sizeof(buffer));
-    if (len <= 0) {
-        close(target_socket);
-        close(client_socket);
-        return NULL;
-    }
-
-    send_to_client(client_socket, buffer, 0, len);
-    current = list_add(cache_node->response, buffer, len);
-    pthread_rwlock_wrlock(&current->sync);
-
-
     //тело
     char body_buf[BUFFER_SIZE];
     long body_len;
@@ -209,17 +202,14 @@ void *client_handler(void *args) {
             pthread_rwlock_unlock(&prev->sync);
         }
 
-
         if (client_alive) {
-            if (send_to_client(client_socket, body_buf, 0, body_len) == -1) {
+            if (send(client_socket, body_buf, body_len, 0) <= 0) {
                 client_alive = 0;
+                printf("\033[35mClient disconnected, continue caching...\033[0m\n");
             }
         }
-
-        if (strcmp(buffer, "\r\n") == 0){
-            break;
-        }
     }
+
     if (current) {
         pthread_rwlock_unlock(&current->sync);
     }
@@ -229,6 +219,7 @@ void *client_handler(void *args) {
     cache_node->response->complete = 1;
     pthread_cond_broadcast(&cache_node->response->cond);
     pthread_mutex_unlock(&cache_node->response->mutex);
+
     printf("\033[32mCache fully loaded\033[0m\n");
     request_destroy(request);
     close(client_socket);
@@ -236,6 +227,7 @@ void *client_handler(void *args) {
     sem_post(sem);
     return NULL;
 }
+
 
 void *start_proxy_server(void *arg) {
     int server_socket;
