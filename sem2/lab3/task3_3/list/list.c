@@ -74,12 +74,6 @@ Node* list_add(List* list, const char* value, long length) {
         abort();
     }
 
-    if (pthread_rwlock_init(&newNode->sync, NULL) != 0) {
-        perror("Can't initialize rwlock");
-        abort();
-    }
-    pthread_rwlock_wrlock(&newNode->sync);
-
     newNode->size = length;
     newNode->value = (char*)malloc(length + 1);
     if (!newNode->value) {
@@ -88,10 +82,14 @@ Node* list_add(List* list, const char* value, long length) {
         abort();
     }
     memcpy(newNode->value, value, length);
+    newNode->value[length] = '\0';
+    if (pthread_rwlock_init(&newNode->sync, NULL) != 0) {
+        perror("Can't initialize rwlock");
+        abort();
+    }
     newNode->next = NULL;
-
     pthread_mutex_lock(&list->mutex);
-    if (!list->first) {
+    if (list->first == NULL) {
         list->first = list->last = newNode;
     } else {
         list->last->next = newNode;
@@ -99,7 +97,6 @@ Node* list_add(List* list, const char* value, long length) {
     }
     pthread_cond_broadcast(&list->cond);
     pthread_mutex_unlock(&list->mutex);
-    pthread_rwlock_unlock(&newNode->sync);
 
     return newNode;
 }
