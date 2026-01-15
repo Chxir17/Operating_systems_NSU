@@ -66,7 +66,7 @@ void *client_handler(void *args) {
             long sent = send(client_socket, current->value, current->size, 0);
             if (sent == -1) {
                 pthread_rwlock_unlock(&current->sync);
-                printf("Client disconnected during cache streaming\n");
+                printf("\033[35mClient disconnected during cache streaming\033[0m\n");
                 request_destroy(request);
                 close(client_socket);
                 free(args);
@@ -83,7 +83,7 @@ void *client_handler(void *args) {
 
 
             if (next == NULL && is_complete) {
-                printf("Streaming from cache completed\n");
+                printf("\033[32mStreaming from cache completed\033[0m\n");
                 break;
             }
             current = next;
@@ -138,7 +138,7 @@ void *client_handler(void *args) {
         if (client_alive) {
             if (send_to_client(client_socket, buffer, 0, len) == -1) {
                 client_alive = 0;
-                printf("Client disconnected during header streaming\n");
+                printf("\033[35mClient disconnected during header streaming\033[0m\n");
             }
         }
         if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
