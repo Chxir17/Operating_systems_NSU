@@ -118,7 +118,6 @@ void *client_handler(void *args) {
     }
 
     //заголовки
-    long buffer_length;
     int buffer_size = BUFFER_SIZE;
     char buffer[BUFFER_SIZE];
     Node *current = NULL;
