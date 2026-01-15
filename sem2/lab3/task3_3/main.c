@@ -41,7 +41,6 @@ void *client_handler(void *args) {
     printf("URL: %s\n", request->search_path);
 
     //ищем в кэше
-    char *redirect_location = NULL;
 
     pthread_mutex_lock(&cache->mutex);
     Cache *cache_node = map_find_by_url(cache, request->search_path);
@@ -184,9 +183,19 @@ void *client_handler(void *args) {
         redirects++;
     }
 
-    if (current) {
-        pthread_rwlock_wrlock(&current->sync);
+
+    char buffer[BUFFER_SIZE];
+    long len = read_line(target_socket, buffer, sizeof(buffer));
+    if (len <= 0) {
+        close(target_socket);
+        close(client_socket);
+        return NULL;
     }
+
+    send_to_client(client_socket, buffer, 0, len);
+    current = list_add(cache_node->response, buffer, len);
+    pthread_rwlock_wrlock(&current->sync);
+
 
     //тело
     char body_buf[BUFFER_SIZE];
@@ -200,10 +209,15 @@ void *client_handler(void *args) {
             pthread_rwlock_unlock(&prev->sync);
         }
 
+
         if (client_alive) {
             if (send_to_client(client_socket, body_buf, 0, body_len) == -1) {
                 client_alive = 0;
             }
+        }
+
+        if (strcmp(buffer, "\r\n") == 0){
+            break;
         }
     }
     if (current) {
