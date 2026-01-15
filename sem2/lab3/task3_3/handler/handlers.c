@@ -9,6 +9,8 @@
 #include "handlers.h"
 #include "messages/messages.h"
 
+#define LINE_BUFFER_SIZE 8192
+
 void init_server_socket(int *server_socket, int port, const int max_clients) {
     //дескриптор сокета
     //IPV4, TCP, протокол автоматически
@@ -47,28 +49,32 @@ void init_server_socket(int *server_socket, int port, const int max_clients) {
 }
 
 Request *read_header(const int socket) {
-    Request *requests;
-    request_init(&requests);
-    long buffer_length;
-    char *buffer = read_line(socket, &buffer_length);
+    Request *request;
+    request_init(&request);
+
+    char buffer[LINE_BUFFER_SIZE];
+
+    if (read_line(socket, buffer, sizeof(buffer)) <= 0) {
+        free(request);
+        return NULL;
+    }
 
     printf("Header: %s\n", buffer);
 
-    parse_method(requests, buffer);
-    free(buffer);
-
+    parse_method(request, buffer);
     while (1) {
-        buffer = read_line(socket, &buffer_length);
-        if (buffer[0] == '\r' && buffer[1] == '\n') {
-            free(buffer);
+        const long len = read_line(socket, buffer, sizeof(buffer));
+        if (len <= 0) {
+            break;
+        }
+        if (strcmp(buffer, "\r\n") == 0) {
             break;
         }
 
         //заголоки
-        parse_metadata(requests, buffer);
-        free(buffer);
+        parse_metadata(request, buffer);
     }
-    return requests;
+    return request;
 }
 
 char *read_body(int socket, long *length, int max_buffer) {
@@ -195,70 +201,19 @@ int send_to_client(int client_socket, char* data, int packages_size, long length
     return 0;
 }
 
-char *read_line(int socket, long *length) {
-    int capacity = 128;
-    char *buf = malloc(capacity);
-    int len = 0;
+long read_line(int socket, char *buf, long maxlen) {
+    long len = 0;
     char read;
-
-    while (recv(socket, &read, 1, 0) == 1) {
-        if (len + 1 >= capacity) {
-            capacity *= 2;
-            buf = realloc(buf, capacity);
+    while (len + 1 < maxlen) {
+        const long read_bytes = recv(socket, &read, 1, 0);
+        if (read_bytes <= 0) {
+            break;
         }
         buf[len++] = read;
         if (read == '\n') {
             break;
         }
     }
-
     buf[len] = '\0';
-    *length = len;
-    return buf;
+    return len;
 }
-
-
-// char *read_line(int socket, long *length) {
-//     int buffer_size = 3;
-//     char *buffer = malloc(sizeof(char) * buffer_size + 1);
-//     if (!buffer) {
-//         perror("Malloc in read_line()");
-//         abort();
-//     }
-//     char c;
-//     long recbytes = 0;
-//     int counter = 0;
-//
-//     while(1) {
-//         recbytes = recv(socket, &c, 1, 0);
-//         if (recbytes == -1) {
-//             perror("Recv");
-//         } else if (recbytes == 0) {
-//             buffer[0] = '\r';
-//             buffer[1] = '\n';
-//             buffer[2] = '\0';
-//
-//             *length = 3;
-//             return buffer;
-//         }
-//         buffer[counter++] = c;
-//
-//         if (c == '\n') {
-//             buffer[counter] = '\0';
-//
-//             *length = counter;
-//             return buffer;
-//         }
-//
-//         if (counter >= buffer_size) {
-//             buffer_size += 1;
-//             char *tmp = realloc(buffer, sizeof(char) * buffer_size + 1);
-//             if (!tmp) {
-//                 perror("realloc in read_line()");
-//                 free(buffer);
-//                 abort();
-//             }
-//             buffer = tmp;
-//         }
-//     }
-//}
