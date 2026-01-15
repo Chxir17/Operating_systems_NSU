@@ -77,6 +77,22 @@ Request *read_header(const int socket) {
     return request;
 }
 
+long read_body(int socket, char *buf, long max_buffer) {
+    if(socket == -1) {
+        printf("The socket given to read_chunk is invalid\n");
+        return 0;
+    }
+    long total = 0;
+    while (total < max_buffer) {
+        long num_bytes = recv(socket, buf + total, max_buffer - total, 0);
+        if (num_bytes <= 0) {
+            break;
+        }
+        total += num_bytes;
+    }
+    return total > 0 ? total : -1;
+}
+
 char *read_body(int socket, long *length, int max_buffer) {
     if (length == NULL) {
         printf("The length pointer supplied to read_chunk is NULL\n");

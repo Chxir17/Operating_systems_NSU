@@ -6,7 +6,7 @@
 void init_server_socket(int *server_socket, int port, int max_clients);
 Request *read_header(int socket);
 int http_connect(Request *req);
-char *read_body(int socket, ssize_t *length, int max_buffer);
+long read_body(int socket, char *buf, long max_buffer);
 int send_to_client(int client_socket, char data[], int packages_size, long length);
 long read_line(int socket, char *buf, long maxlen);
 

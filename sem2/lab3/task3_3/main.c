@@ -15,7 +15,7 @@
 #define PORT 8080
 #define MAX_THREADS 1000
 #define MAX_CLIENTS 1000
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 8192
 
 typedef struct ThreadArgs {
     int client_socket;
@@ -120,31 +120,32 @@ void *client_handler(void *args) {
     //заголовки
     long buffer_length;
     int buffer_size = BUFFER_SIZE;
+    char buffer[BUFFER_SIZE];
     Node *current = NULL;
     Node *prev = NULL;
     int client_alive = 1;
 
     while (1) {
-        char *buffer = read_line(target_socket, &buffer_length);
-        if (!buffer) break;
-        current = list_add(cache_node->response, buffer, buffer_length);
-        //если жив
+        const long len = read_line(target_socket, buffer, sizeof(buffer));
+        if (len <= 0) {
+            break;
+        }
+
+        current = list_add(cache_node->response, buffer, len);
+
         if (client_alive) {
-            if (send_to_client(client_socket, buffer, 0, buffer_length) == -1) {
+            if (send_to_client(client_socket, buffer, 0, len) == -1) {
                 client_alive = 0;
                 printf("Client disconnected during header streaming\n");
             }
         }
-        if (strstr(buffer, "Content-Length: ")) {
-            long cl = atoll(buffer + strlen("Content-Length: "));
-            buffer_size = (cl < BUFFER_SIZE) ? cl : BUFFER_SIZE;
+        if (strncmp(buffer, "Content-Length: ", strlen("Content-Length: ")) == 0) {
+            const long content_length = atoll(buffer + strlen("Content-Length: "));
+            buffer_size = (content_length < BUFFER_SIZE) ? content_length : BUFFER_SIZE;
         }
         if (buffer[0] == '\r' && buffer[1] == '\n') {
-            free(buffer);
             break;
         }
-
-        free(buffer);
     }
 
     if (current) {
@@ -152,27 +153,22 @@ void *client_handler(void *args) {
     }
 
     //тело
-    while (1) {
-        long body_length;
-        char *body = read_body(target_socket, &body_length, buffer_size);
-        if (!body) break;
+    char body_buf[BUFFER_SIZE];
+    long body_len;
+    while ((body_len = read_body(target_socket, body_buf, buffer_size)) > 0) {
         prev = current;
-        current = list_add(cache_node->response, body, body_length);
+        current = list_add(cache_node->response, body_buf, body_len);
         pthread_rwlock_wrlock(&current->sync);
 
         if (prev) {
             pthread_rwlock_unlock(&prev->sync);
         }
 
-        //если жив
         if (client_alive) {
-            if (send_to_client(client_socket, body, 0, body_length) == -1) {
+            if (send_to_client(client_socket, body_buf, 0, body_len) == -1) {
                 client_alive = 0;
-                printf("Client disconnected during body streaming\n");
             }
         }
-
-        free(body);
     }
     if (current) {
         pthread_rwlock_unlock(&current->sync);
