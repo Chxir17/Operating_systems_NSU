@@ -130,3 +130,32 @@ void list_destroy(List* list) {
     }
     free(list);
 }
+
+void map_remove(Map* map, const char* url) {
+    if (!map || !url) {
+        return;
+    }
+
+    pthread_mutex_lock(&map->mutex);
+
+    Cache* current = map->first;
+    Cache* prev = NULL;
+
+    while (current) {
+        if (strcmp(current->url, url) == 0) {
+            if (prev) {
+                prev->next = current->next;
+            } else {
+                map->first = current->next;
+            }
+
+            free(current->url);
+            list_destroy(current->response);
+            free(current);
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+    pthread_mutex_unlock(&map->mutex);
+}

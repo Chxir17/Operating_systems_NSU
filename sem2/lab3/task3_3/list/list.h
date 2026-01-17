@@ -40,4 +40,5 @@ Node* list_add(List* list, const char* value, long length);
 void list_print(const List* list);
 void list_destroy(List* list);
 int list_wait_for_data(List* list, Node** current);
+void map_remove(Map* map, const char* url);
 #endif //OS_LIST_H
