@@ -101,7 +101,7 @@ void *client_handler(void *args) {
         return NULL;
     }
 
-    printf("\033[31mCreating new cache\033[0m\n");
+
     //новый кэш
     cache_node = map_add(cache, request->search_path);
     pthread_mutex_unlock(&cache->mutex);
@@ -178,6 +178,7 @@ void *client_handler(void *args) {
                 }
             }
             if (need_to_cache) {
+                printf("\033[31mCreating new cache\033[0m\n");
                 current = list_add(cache_node->response, headers, headers_len);
                 pthread_rwlock_wrlock(&current->sync);
             }
