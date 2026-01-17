@@ -9,8 +9,6 @@
 #include "handlers.h"
 #include "messages/messages.h"
 
-#define LINE_BUFFER_SIZE 8192
-
 void init_server_socket(int *server_socket, int port, const int max_clients) {
     //дескриптор сокета
     //IPV4, TCP, протокол автоматически
@@ -102,7 +100,11 @@ int parse_http_status(const char *status_line) {
 }
 
 int is_redirect(int status) {
-    return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+    return status >= 300 && status < 400;
+}
+
+int cache_allowed(int status) {
+    return status >= 200 && status < 300;
 }
 
 char *get_location_header(Request *req) {
@@ -112,9 +114,6 @@ char *get_location_header(Request *req) {
     }
     return strdup(location);
 }
-
-
-
 
 int http_connect(Request *req) {
     const char *host_header = list_get_key(&req->metadata_head, "Host");
@@ -178,17 +177,17 @@ int send_to_client(int client_socket, char* data, int packages_size, long length
     if (packages_size <= 0) {
         bytes_sent = send(client_socket, data, length, 0);
     } else {
-        int p;
-        for (p = 0; p * packages_size + packages_size < length; p++) {
-            bytes_sent = send(client_socket, (data + p * packages_size), packages_size, 0);
+        int package;
+        for (package = 0; package * packages_size + packages_size < length; package++) {
+            bytes_sent = send(client_socket, (data + package * packages_size), packages_size, 0);
             if (bytes_sent == -1) {
                 perror("Couldn't send data to the client (loop)");
                 return -1;
             }
         }
 
-        if (p * packages_size < length) {
-            bytes_sent = send(client_socket, (data + p * packages_size), length - p * packages_size, 0);
+        if (package * packages_size < length) {
+            bytes_sent = send(client_socket, (data + package * packages_size), length - package * packages_size, 0);
         }
     }
 

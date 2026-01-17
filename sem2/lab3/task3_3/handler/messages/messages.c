@@ -283,3 +283,13 @@ int request_send(int socket, Request *request) {
 
     return 0;
 }
+
+int request_send_not_allowed(int socket) {
+    char *response =
+        "HTTP/1.1 405 Method Not Allowed\r\n"
+        "Allow: GET\r\n"
+        "Connection: close\r\n"
+        "Content-Length: 0\r\n"
+        "\r\n";
+    return send_to_client(socket, response,0,strlen(response));
+}

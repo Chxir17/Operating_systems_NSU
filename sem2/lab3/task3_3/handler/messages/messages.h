@@ -13,5 +13,6 @@ void update_request_from_location(Request *req, const char *location);
 void parse_method(Request* result, const char* line);
 void parse_metadata(Request *result, const char *line);
 int request_send(int socket, Request *request);
+int request_send_not_allowed(int socket);
 
 #endif //OS_MESSAGES_H

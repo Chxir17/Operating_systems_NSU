@@ -38,6 +38,16 @@ void *client_handler(void *args) {
         return NULL;
     }
 
+    if (request->method != GET) {
+        request_send_not_allowed(client_socket);
+
+        request_destroy(request);
+        close(client_socket);
+        free(args);
+        sem_post(sem);
+        return NULL;
+    }
+
     printf("URL: %s\n", request->search_path);
 
     //ищем в кэше
@@ -56,9 +66,6 @@ void *client_handler(void *args) {
                 //ждём новых данных или завершения
                 if (!list_wait_for_data(cache_node->response, &current)) {
                     break;
-                }
-                if (current == NULL) {
-                    continue;
                 }
             }
 
@@ -125,10 +132,11 @@ void *client_handler(void *args) {
     int client_alive = 1;
     int redirects = 0;
     int buffer_size = BUFFER_SIZE;
+    int need_to_cache = 1;
     while (redirects < MAX_REDIRECTS) {
         char buffer[BUFFER_SIZE];
         char headers[BUFFER_SIZE * 16];
-        size_t headers_len = 0;
+        long headers_len = 0;
         char *location = NULL;
 
         long len;
@@ -137,6 +145,7 @@ void *client_handler(void *args) {
         }
 
         int status = parse_http_status(buffer);
+        need_to_cache = cache_allowed(status);
         memcpy(headers + headers_len, buffer, len);
         headers_len += len;
 
@@ -146,7 +155,9 @@ void *client_handler(void *args) {
 
             if (is_redirect(status) && strncasecmp(buffer, "Location:", 9) == 0) {
                 char *space = buffer + 9;
-                while (*space == ' ') space++;
+                while (*space == ' ') {
+                    space++;
+                }
                 location = strndup(space, strcspn(space, "\r\n"));
             }
 
@@ -166,8 +177,10 @@ void *client_handler(void *args) {
                     client_alive = 0;
                 }
             }
-            current = list_add(cache_node->response, headers, headers_len);
-            pthread_rwlock_wrlock(&current->sync);
+            if (need_to_cache) {
+                current = list_add(cache_node->response, headers, headers_len);
+                pthread_rwlock_wrlock(&current->sync);
+            }
             break;
         }
 
@@ -193,12 +206,13 @@ void *client_handler(void *args) {
     char body_buf[BUFFER_SIZE];
     long body_len;
     while ((body_len = read_body(target_socket, body_buf, buffer_size)) > 0) {
-        prev = current;
-        current = list_add(cache_node->response, body_buf, body_len);
-        pthread_rwlock_wrlock(&current->sync);
-
-        if (prev) {
-            pthread_rwlock_unlock(&prev->sync);
+        if (need_to_cache){
+            prev = current;
+            current = list_add(cache_node->response, body_buf, body_len);
+            pthread_rwlock_wrlock(&current->sync);
+            if (prev) {
+                pthread_rwlock_unlock(&prev->sync);
+            }
         }
 
         if (client_alive) {
