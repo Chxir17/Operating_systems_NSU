@@ -146,9 +146,6 @@ void *client_handler(void *args) {
 
         int status = parse_http_status(buffer);
         need_to_cache = cache_allowed(status);
-        if (!need_to_cache) {
-            map_remove(cache, request->search_path);
-        }
         memcpy(headers + headers_len, buffer, len);
         headers_len += len;
 
@@ -239,6 +236,9 @@ void *client_handler(void *args) {
 
     if (need_to_cache) {
         printf("\033[32mCache fully loaded\033[0m\n");
+    }
+    if (!need_to_cache) {
+        map_remove(cache, request->search_path);
     }
     request_destroy(request);
     close(client_socket);
