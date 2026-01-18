@@ -21,20 +21,21 @@ void connectToServer(int sockfd, const char *ip, uint16_t port) {
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) { //конвертация текста в двоичный
+    if (inet_pton(AF_INET, ip, &serverAddr.sin_addr) <= 0) {
+        //конвертация текста в двоичный
         perror("Invalid address");
         close(sockfd);
         exit(EXIT_FAILURE);
     }
 
-    if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (connect(sockfd, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0) {
         perror("Connection fail");
         close(sockfd);
         exit(EXIT_FAILURE);
     }
 }
 
-void communicate(int sockfd, const char* serverIP, int port) {
+void communicate(int sockfd, const char *serverIP, int port) {
     char buffer[BUF_SIZE];
     ssize_t bytesReceived;
     printf("Connected!");

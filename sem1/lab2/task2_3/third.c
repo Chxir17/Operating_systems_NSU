@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
         perror("execl");
         exit(1);
     }
-    else if (child_pid > 0) {
+    if (child_pid > 0) {
         // Родитель
         waitpid(child_pid, &status, 0);
         ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
@@ -110,11 +110,6 @@ int main(int argc, char *argv[]) {
                 perror("ptrace GETREGSET");
                 break;
             }
-
-
-
-
-
             long retval = regs.regs[0];
             printf("[EXIT ] Return: %ld\n", retval);
 

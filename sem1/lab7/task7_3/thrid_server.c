@@ -65,9 +65,6 @@ void flushClientBuffer(Client *client) {
     }
 }
 
-
-
-
 void handleMessage(Client *client) {
     char buffer[1024];
     ssize_t toRead = read(client->socket, buffer, sizeof(buffer));
